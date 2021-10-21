@@ -1,0 +1,17 @@
+Import('RTT_ROOT')
+Import('rtconfig')
+Import('env')
+from building import *
+
+cwd = GetCurrentDir()
+src = Glob('*.c')
+
+include = [cwd, cwd + '/include']
+lib = []
+libpath  = [cwd]
+
+env.StaticLibrary([cwd + '/rcdevice'], src)
+
+group = DefineGroup('rcdevice', src, depend = [''], CPPPATH = include, LIBS = lib, LIBPATH = libpath)
+
+Return('group')
