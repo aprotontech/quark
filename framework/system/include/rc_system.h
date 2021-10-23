@@ -9,6 +9,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifndef QUARK_SYSTEM
+#define QUARK_SYSTEM 1
+#endif
+
 #if QUARK_SYSTEM == 1
 #define __QUARK_FREERTOS__ 1
 #endif
@@ -25,6 +29,9 @@
 #endif
 
 #ifdef __QUARK_FREERTOS__
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
 #endif
 
 #ifndef RC_ERROR_INVALIDATE_INPUT

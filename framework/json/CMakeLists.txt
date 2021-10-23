@@ -11,8 +11,8 @@ ADD_OUTPUT_LIBRARY(json_static STATIC ${LIB_SRC_LIST})
 SET_MODULE_PROPERTIES(json_static PROPERTIES OUTPUT_NAME "json")
 
 # 4.Install executable,libraries,include,doc,demo source code etc.
-#INSTALL_OUTPUT(TARGETS json_static DESTINATION ${INSTALL_DIR}/lib/static)
-#INSTALL_OUTPUT(DIRECTORY include DESTINATION ${INSTALL_DIR})
+INSTALL_OUTPUT(TARGETS json_static DESTINATION ${INSTALL_DIR}/lib/static)
+INSTALL_OUTPUT(DIRECTORY include DESTINATION ${INSTALL_DIR})
 
 # 5.Create module install target
-#ADD_MODULE_INSTALL(json_install)
+ADD_MODULE_INSTALL(json_install)

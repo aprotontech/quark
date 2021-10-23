@@ -22,7 +22,6 @@ ADD_TARGET_LINK_LIBRARIES(rcutils_static logs md5 json)
 SET_MODULE_PROPERTIES(rcutils_static PROPERTIES OUTPUT_NAME "rcutils")
 
 # 4.Install executable,libraries,include,doc,demo source code etc.
-#INSTALL(TARGETS http_shared DESTINATION ${INSTALL_DIR}/lib/shared)
 #INSTALL(TARGETS http_static DESTINATION ${INSTALL_DIR}/lib/static)
 #INSTALL(DIRECTORY include DESTINATION ${INSTALL_DIR})
 

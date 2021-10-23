@@ -15,4 +15,4 @@ INSTALL_OUTPUT(TARGETS md5_static DESTINATION ${INSTALL_DIR}/lib/static)
 INSTALL_OUTPUT(DIRECTORY include DESTINATION ${INSTALL_DIR})
 
 # 5.Create module install target
-#ADD_MODULE_INSTALL(md5_install)
+ADD_MODULE_INSTALL(md5_install)
