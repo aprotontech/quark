@@ -16,17 +16,13 @@ INCLUDE_DIRECTORIES(${RCUTILS_SOURCE_DIR}/include)
 INCLUDE_DIRECTORIES(${SYSTEM_SOURCE_DIR}/include)
 
 # 2.Add library,dependencies,link libraries
-ADD_OUTPUT_LIBRARY(ans_shared SHARED ${LIB_SRC_LIST})
 ADD_OUTPUT_LIBRARY(ans_static STATIC ${LIB_SRC_LIST})
 
-ADD_MODULE_DEPENDENCIES(ans_shared http_shared logs_shared md5_shared json_shared)
 ADD_MODULE_DEPENDENCIES(ans_static http_static logs_static md5_static json_static)
 
-ADD_TARGET_LINK_LIBRARIES(ans_shared http logs md5 json rcutils)
 ADD_TARGET_LINK_LIBRARIES(ans_static http logs md5 json rcutils)
 
 # 3.Set properties
-SET_MODULE_PROPERTIES(ans_shared PROPERTIES OUTPUT_NAME "ans")
 SET_MODULE_PROPERTIES(ans_static PROPERTIES OUTPUT_NAME "ans")
 
 # 4.Install executable,libraries,include,doc,demo source code etc.

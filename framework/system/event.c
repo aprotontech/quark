@@ -16,7 +16,6 @@
 #include "rc_event.h"
 #include <unistd.h>
 #include <stdlib.h>
-//#include <memory.h>
 #include <errno.h>
 #include <time.h>
 #include "logs.h"
@@ -26,7 +25,9 @@
 typedef struct _rc_pthread_event_t {
 #if defined(__QUARK_RTTHREAD__)
 	rt_event_t mevent;
-#else
+#elif defined(__QUARK_FREERTOS__)
+
+#elif defined(__QUARK_LINUX__)
     pthread_mutex_t mevent;
     pthread_cond_t mcond;
 #endif
@@ -41,7 +42,9 @@ rc_event rc_event_init()
 		free(event);
         return NULL;
     }
-#else
+#elif defined(__QUARK_FREERTOS__)
+
+#elif defined(__QUARK_LINUX__)
     pthread_mutex_init(&event->mevent, NULL);
     pthread_cond_init(&event->mcond, NULL);
 #endif
@@ -61,7 +64,9 @@ int rc_event_wait(rc_event evt, int timeout)
         rc = rt_event_recv(event->mevent, RC_DEFAULT_EVENT_SET,
                                 RT_EVENT_FLAG_CLEAR | RT_EVENT_FLAG_AND,
                                 timeout, &e);
-#else
+#elif defined(__QUARK_FREERTOS__)
+
+#elif defined(__QUARK_LINUX__)
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
         msec = (ts.tv_nsec / 1000000) + (timeout % 1000);
@@ -84,7 +89,9 @@ int rc_event_signal(rc_event evt)
     if (event != NULL) {
 #if defined(__QUARK_RTTHREAD__)
         rc = rt_event_send(event->mevent, RC_DEFAULT_EVENT_SET);
-#else
+#elif defined(__QUARK_FREERTOS__)
+
+#elif defined(__QUARK_LINUX__)
         pthread_mutex_lock(&event->mevent);
         rc = pthread_cond_signal(&event->mcond);
         pthread_mutex_unlock(&event->mevent);
@@ -101,7 +108,9 @@ int rc_event_uninit(rc_event evt)
     if (event != NULL) {
 #if defined(__QUARK_RTTHREAD__)
         rt_event_delete(event->mevent);
-#else
+#elif defined(__QUARK_FREERTOS__)
+
+#elif defined(__QUARK_LINUX__)
         pthread_mutex_destroy(&event->mevent);
         pthread_cond_destroy(&event->mcond);
 #endif

@@ -19,6 +19,10 @@
 #define RT_THREAD_STACK_SIZE 2048
 #define RT_THREAD_PROIORITY 8
 
-#endif
+#endif //__QUARK_RTTHREAD__
+
+#ifdef __QUARK_FREERTOS__
+#endif // __QUARK_FREERTOS__
+
 
 #endif

@@ -23,7 +23,9 @@ typedef struct _rc_thread_t {
     rt_thread_t pthread;
     rc_thread_function func;
     void* arg;
-#else
+#elif defined(__QUARK_FREERTOS__)
+
+#elif defined(__QUARK_LINUX__)
     pthread_t pthread;
 #endif
     char name[20];
@@ -64,8 +66,10 @@ rc_thread rc_thread_create(rc_thread_function func, void* arg)
 
     thread->func = func;
     thread->arg = arg;
-    rt_thread_startup(thread->pthread);
-#else
+    rt_thread_startup(thread->pthread);    
+#elif defined(__QUARK_FREERTOS__)
+
+#elif defined(__QUARK_LINUX__)
     pthread_create(&thread->pthread, NULL, func, arg);
 #endif
 
@@ -79,7 +83,9 @@ int rc_thread_join(rc_thread th)
     if (thread != NULL) {
 #if defined(__QUARK_RTTHREAD__)
         rt_thread_delete(thread->pthread);
-#else        
+#elif defined(__QUARK_FREERTOS__)
+
+#elif defined(__QUARK_LINUX__)
         rc = pthread_join(thread->pthread, NULL);
 #endif
         free(thread);
