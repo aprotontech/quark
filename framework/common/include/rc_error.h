@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_RC_ERROR_H_
-#define _AIE_RC_ERROR_H_
+#ifndef _QUARK_RC_ERROR_H_
+#define _QUARK_RC_ERROR_H_
 
 #include <stdlib.h>
 #include <string.h>

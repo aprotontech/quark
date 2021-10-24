@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_HTTP_CLIENT_H_
-#define _AIE_HTTP_CLIENT_H_
+#ifndef _QUARK_HTTP_CLIENT_H_
+#define _QUARK_HTTP_CLIENT_H_
 
 #include "rc_error.h"
 #include <stdlib.h>

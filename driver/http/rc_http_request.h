@@ -14,8 +14,8 @@
  **/
 
 
-#ifndef _AIE_HTTP_REQUEST_H_
-#define _AIE_HTTP_REQUEST_H_
+#ifndef _QUARK_HTTP_REQUEST_H_
+#define _QUARK_HTTP_REQUEST_H_
 
 #include "rc_buf.h"
 

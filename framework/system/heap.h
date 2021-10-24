@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_TIME_HEAD_H_
-#define _AIE_TIME_HEAD_H_
+#ifndef _QUARK_TIME_HEAD_H_
+#define _QUARK_TIME_HEAD_H_
 
 #include "rc_event.h"
 #include "rc_timer.h"

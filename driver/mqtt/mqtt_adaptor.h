@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_MQTT_ADATOR_H_
-#define _AIE_MQTT_ADATOR_H_
+#ifndef _QUARK_MQTT_ADATOR_H_
+#define _QUARK_MQTT_ADATOR_H_
 
 #include "rc_mqtt.h"
 #include "hashmap.h"

@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_EVENT_H_
-#define _AIE_EVENT_H_
+#ifndef _QUARK_EVENT_H_
+#define _QUARK_EVENT_H_
 
 typedef void* rc_event;
 

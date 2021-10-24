@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_SERVICE_H_
-#define _AIE_SERVICE_H_
+#ifndef _QUARK_SERVICE_H_
+#define _QUARK_SERVICE_H_
 
 #include "ans.h"
 #include "hashmap.h"

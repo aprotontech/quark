@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_MQTT_H_
-#define _AIE_MQTT_H_
+#ifndef _QUARK_MQTT_H_
+#define _QUARK_MQTT_H_
 
 #include "rc_buf.h"
 #include "rc_timer.h"

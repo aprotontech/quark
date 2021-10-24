@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_DEVICE_H_
-#define _AIE_DEVICE_H_
+#ifndef _QUARK_DEVICE_H_
+#define _QUARK_DEVICE_H_
 
 #include "rc_http_manager.h"
 #include "rc_timer.h"

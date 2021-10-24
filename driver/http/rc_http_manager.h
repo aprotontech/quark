@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_HTTP_MANAGER_H_
-#define _AIE_HTTP_MANAGER_H_
+#ifndef _QUARK_HTTP_MANAGER_H_
+#define _QUARK_HTTP_MANAGER_H_
 
 #include "rc_http_client.h"
 

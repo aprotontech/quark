@@ -1,7 +1,7 @@
 
 
-#ifndef _AIE_SYSTEM_H_
-#define _AIE_SYSTEM_H_
+#ifndef _QUARK_SYSTEM_H_
+#define _QUARK_SYSTEM_H_
 
 
 #include <stdio.h>

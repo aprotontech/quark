@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_CLIST_H_
-#define _AIE_CLIST_H_
+#ifndef _QUARK_CLIST_H_
+#define _QUARK_CLIST_H_
 
 #include <stdlib.h>
 #include <string.h>

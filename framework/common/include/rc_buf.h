@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_RC_BUF_H_
-#define _AIE_RC_BUF_H_
+#ifndef _QUARK_RC_BUF_H_
+#define _QUARK_RC_BUF_H_
 
 #include "clist.h"
 #include "rc_error.h"

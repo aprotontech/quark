@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_TIMER_H_
-#define _AIE_TIMER_H_
+#ifndef _QUARK_TIMER_H_
+#define _QUARK_TIMER_H_
 
 #include "rc_system.h"
 

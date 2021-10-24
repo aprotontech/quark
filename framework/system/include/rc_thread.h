@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_THREAD_H_
-#define _AIE_THREAD_H_
+#ifndef _QUARK_THREAD_H_
+#define _QUARK_THREAD_H_
 
 typedef void* rc_thread;
 

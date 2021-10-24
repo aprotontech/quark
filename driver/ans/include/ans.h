@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_ANS_H_
-#define _AIE_ANS_H_
+#ifndef _QUARK_ANS_H_
+#define _QUARK_ANS_H_
 
 #include "rc_error.h"
 #include <sys/socket.h>

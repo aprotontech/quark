@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_MUTEX_H_
-#define _AIE_MUTEX_H_
+#ifndef _QUARK_MUTEX_H_
+#define _QUARK_MUTEX_H_
 
 typedef void* rc_mutex;
 

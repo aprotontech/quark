@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_CRYPT_H_
-#define _AIE_CRYPT_H_
+#ifndef _QUARK_CRYPT_H_
+#define _QUARK_CRYPT_H_
 
 #include "rc_buf.h"
 

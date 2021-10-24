@@ -13,8 +13,8 @@
  *
  **/
 
-#ifndef _AIE_URL_H_
-#define _AIE_URL_H_
+#ifndef _QUARK_URL_H_
+#define _QUARK_URL_H_
 
 char* rc_url_encode(const char *input, int len);
 

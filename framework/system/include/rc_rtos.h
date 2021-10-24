@@ -1,7 +1,7 @@
 
 
-#ifndef _AIE_RTOS_H_
-#define _AIE_RTOS_H_
+#ifndef _QUARK_RTOS_H_
+#define _QUARK_RTOS_H_
 
 #ifdef __QUARK_RTTHREAD__
 
