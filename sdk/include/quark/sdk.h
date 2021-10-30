@@ -69,6 +69,7 @@ typedef struct _rc_settings_t {
     int property_change_report;
     int porperty_retry_interval;
 
+    char enable_ntp_time_sync;
     char new_thread_init;
     char enable_keepalive; 
     char max_device_retry_times;

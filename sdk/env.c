@@ -19,6 +19,7 @@ rc_runtime_t* _env;
 void env_free(rc_runtime_t* env);
 
 int sync_server_time(rc_timer timer, void* dev);
+int rc_enable_ntp_sync_time();
 
 int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status);
 
@@ -41,6 +42,9 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info, rc_settings_
     }
 
     LOGW(SDK_TAG, "quark sdk start to init");
+    if (settings->enable_ntp_time_sync) {
+        rc_enable_ntp_sync_time();
+    }
 
     env = (rc_runtime_t*)rc_malloc(sizeof(rc_runtime_t));
     memset(env, 0, sizeof(rc_runtime_t));

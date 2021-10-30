@@ -16,5 +16,6 @@ rc_settings_t* rc_settings_init(rc_settings_t* setting)
     setting->production = "";
     setting->property_change_report = 1;
     setting->porperty_retry_interval = 30 * 1000;
+    setting->enable_ntp_time_sync = 1;
     return setting;
 }
