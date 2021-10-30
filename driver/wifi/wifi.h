@@ -30,4 +30,6 @@ int wifi_manager_connect(wifi_manager mgr, const char* ssid, const char* passwor
 
 int wifi_manager_uninit(wifi_manager mgr);
 
+int wifi_get_local_ip(wifi_manager mgr, char *ip, int* wifi_status);
+
 #endif

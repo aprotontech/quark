@@ -53,6 +53,10 @@ int watch_wifi_status_change(int connected)
     static int access = 0;
     if (connected && !access) { // wifi status connected
         access = 1;
+
+        char ip[16] = {0};
+        rc_get_wifi_local_ip(ip);
+        LOGI(VD_TAG, "Local Ip: %s", ip);
         
         // create new thread because memory
         set_next_thread_params("testget", 4096, -1);

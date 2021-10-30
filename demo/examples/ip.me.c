@@ -19,10 +19,11 @@ int httpget_other_service_url()
     LOGI(VD_TAG, "try to query url %s", TEST_QUERY_URL);
 
     rc_buf_t response = rc_buf_stack();
-    int rc = http_get(mgr, TEST_QUERY_URL, TEST_QUERY_IP, NULL, 0, 3 * 1000, &response);
+    const char* headers[] = {"User-Agent: curl/7.68.0"};
+    int rc = http_get(mgr, TEST_QUERY_URL, TEST_QUERY_IP, headers, sizeof(headers)/sizeof(const char*), 3 * 1000, &response);
     LOGI(VD_TAG, "query %s status code %d", TEST_QUERY_URL, rc);
     if (rc >= 200 && rc < 300) {
-        LOGI(VD_TAG, "%s", response.buf);
+        LOGI(VD_TAG, "My Public Ip: %s", get_buf_ptr(&response));
     }
 
     rc_buf_free(&response);

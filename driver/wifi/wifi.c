@@ -16,3 +16,24 @@ int wifi_manager_uninit(wifi_manager mgr)
     }
     return RC_SUCCESS;
 }
+
+int wifi_get_local_ip(wifi_manager wm, char* ip, int* wifi_status)
+{
+    wifi_manager_t* mgr = (wifi_manager_t*)wm;
+    if (mgr != NULL) {
+        if (ip != NULL) {
+            memcpy(ip, mgr->ip, sizeof(mgr->ip));
+        }
+        if (wifi_status != NULL) {
+#if defined(__QUARK_FREERTOS__)
+            extern int _get_wifi_connect_bit(EventGroupHandle_t wifi_event_group);
+            *wifi_status = _get_wifi_connect_bit(mgr->wifi_event_group);
+#endif
+        }
+
+        return ip == NULL && wifi_status == NULL ? RC_ERROR_INVALIDATE_INPUT : RC_SUCCESS;
+    }
+    
+
+    return RC_ERROR_INVALIDATE_INPUT;
+}

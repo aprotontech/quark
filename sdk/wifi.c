@@ -19,3 +19,25 @@ int rc_set_wifi(const char* ssid, const char* password)
 
     return wifi_manager_connect(env->wifimgr, ssid, password);
 }
+
+int rc_get_wifi_local_ip(char ip[16])
+{
+    rc_runtime_t* env = get_env_instance();
+    if (env == NULL || env->wifimgr == NULL) {
+        LOGW(SDK_TAG, "sdk is not inited");
+        return RC_ERROR_SDK_INIT;
+    }
+
+    return wifi_get_local_ip(env->wifimgr, ip, NULL);
+}
+
+int rc_get_wifi_status(int* wifi_status)
+{
+    rc_runtime_t* env = get_env_instance();
+    if (env == NULL || env->wifimgr == NULL) {
+        LOGW(SDK_TAG, "sdk is not inited");
+        return RC_ERROR_SDK_INIT;
+    }
+
+    return wifi_get_local_ip(env->wifimgr, NULL, wifi_status);
+}

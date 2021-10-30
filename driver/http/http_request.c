@@ -30,6 +30,8 @@
 #define RC_HTTP_RECV_INIT_BUF_SIZE 4090
 #endif
 
+#define RC_DEFAULT_USER_AGENT "RC-CLIENT(1.0)"
+
 typedef struct _async_request_thread {
     rc_thread reqthread;
 
@@ -62,12 +64,14 @@ typedef struct _rc_http_request_t {
 
     async_request_thread* thread;
 
-    int stype; // response type: normal, chunk
+    char stype; // response type: normal, chunk
 
     // request data
-    int finished;
+    char finished;
 
-    int rtype; // request type: normal, chunk
+    char rtype; // request type: normal, chunk
+    // has custome user agent header
+    char custom_user_agent_header;
 
     int cur_chunck_size;
 
@@ -175,6 +179,18 @@ int http_request_finish(http_request _request, int status_code, const char* body
     return 0;
 }
 
+int str_prefix_case_compare(const char* prefix, const char* content)
+{
+    while (*prefix != '\0' && tolower(*prefix) == tolower(*content)) {
+        ++ prefix;
+        ++ content;
+    }
+
+    if (*prefix == '\0') return 0;
+    else if (*content == '\0') return -1;
+    return 1;
+}
+
 int http_request_set_opt(http_request req, int type, void* opt)
 {
     DECLEAR_REAL_VALUE(rc_http_request_t, request, req);
@@ -196,6 +212,9 @@ int http_request_set_opt(http_request req, int type, void* opt)
     case HTTP_REQUEST_OPT_HEADER:
         if (opt != NULL) {
             LL_insert(&((rc_buf_t*)opt)->link, request->headers.prev);
+            if (str_prefix_case_compare("User-Agent:", get_buf_ptr((rc_buf_t*)opt)) == 0) {
+                request->custom_user_agent_header = 1;
+            }
         }
         break;
     case HTTP_REQUEST_OPT_METHOD:
@@ -593,7 +612,9 @@ int http_request_build_header(rc_http_request_t* request)
     rc_buf_t* rbuf = NULL;
     HTTP_WRITE_BUF("%s %s HTTP/1.1\r\n", http_method_str(request->method), request->path);
     HTTP_WRITE_BUF("Host: %s\r\n", request->host);
-    HTTP_WRITE_BUF("User-Agent: %s\r\n", "RC-CLIENT(1.0)");
+    if (!request->custom_user_agent_header) {
+        HTTP_WRITE_BUF("User-Agent: %s\r\n", RC_DEFAULT_USER_AGENT);
+    }
     HTTP_WRITE_BUF("Accept: */*\r\n");
 
 

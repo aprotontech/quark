@@ -13,6 +13,10 @@
 
 const int CONNECTED_BIT = BIT0;
 
+int _get_wifi_connect_bit(EventGroupHandle_t wifi_event_group) {
+    return (xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)== CONNECTED_BIT ? 1 : 0;
+}
+
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     wifi_manager_t* mgr = (wifi_manager_t*)arg;
