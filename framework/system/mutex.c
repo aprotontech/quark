@@ -21,7 +21,7 @@ typedef struct _rc_mutex_t {
 #if defined(__QUARK_RTTHREAD__)
 	rt_mutex_t pm;
 #elif defined(__QUARK_FREERTOS__)
-
+    SemaphoreHandle_t pm;
 #elif defined(__QUARK_LINUX__)
     pthread_mutex_t pm;
 #endif
@@ -38,7 +38,7 @@ rc_mutex rc_mutex_create(void* attr)
         return NULL;
     }
 #elif defined(__QUARK_FREERTOS__)
-
+    mutex->pm = xSemaphoreCreateMutex();
 #elif defined(__QUARK_LINUX__)
     pthread_mutex_init(&mutex->pm, NULL);
 #endif
@@ -54,7 +54,7 @@ int rc_mutex_lock(rc_mutex mt)
 #if defined(__QUARK_RTTHREAD__)
         rc = rt_mutex_take(mutex->pm, RT_WAITING_FOREVER);
 #elif defined(__QUARK_FREERTOS__)
-
+        rc = xSemaphoreTake(mutex->pm, portMAX_DELAY);
 #elif defined(__QUARK_LINUX__)    
         rc = pthread_mutex_lock(&mutex->pm);
 #endif
@@ -71,7 +71,7 @@ int rc_mutex_unlock(rc_mutex mt)
 #if defined(__QUARK_RTTHREAD__)
         rc = rt_mutex_release(mutex->pm);
 #elif defined(__QUARK_FREERTOS__)
-
+            rc = xSemaphoreGive(mutex->pm);
 #elif defined(__QUARK_LINUX__)  
         rc = pthread_mutex_unlock(&mutex->pm);
 #endif        
@@ -88,7 +88,8 @@ int rc_mutex_destroy(rc_mutex mt)
 #if defined(__QUARK_RTTHREAD__)
         rc = rt_mutex_delete(mutex->pm);
 #elif defined(__QUARK_FREERTOS__)
-
+        vSemaphoreDelete(mutex->pm);
+        rc = 0;
 #elif defined(__QUARK_LINUX__)
         rc = pthread_mutex_destroy(&mutex->pm);
 #endif        

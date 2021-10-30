@@ -20,7 +20,7 @@ typedef void* rc_event;
 
 rc_event rc_event_init();
 
-int rc_event_wait(rc_event event, int timeout);
+int rc_event_wait(rc_event event, int timeout_ms);
 
 int rc_event_signal(rc_event event);
 

@@ -77,8 +77,8 @@ mqtt_client rc_mqtt_create(const char* host, int port,
     mqtt->conn_opts.password.cstring = "";
     mqtt->conn_opts.willFlag = 0;
     mqtt->conn_opts.MQTTVersion = 4;
-
-#else
+#elif defined(__QUARK_FREERTOS__)
+#elif defined(__QUARK_LINUX__)
     mqtt->conn_opts = conn_opts;
     mqtt->conn_opts.keepAliveInterval = 60;
     mqtt->conn_opts.reliable = 0;
@@ -145,17 +145,9 @@ int do_rpc_callback(rc_mqtt_client* mqtt, mqtt_rpc_event_callback callback,
     END_JSON_OBJECT(body);
 #ifdef __QUARK_RTTHREAD__
     ret = MQTTClient_publish(mqtt->client, acktopic, strlen(output), output, MQTT_RPC_QOS, 0, &token);
-    /*{
-        MQTTMessage message;
-        message.qos = 1;
-        message.retained = 0;
-        message.payload = (void *)body;
-        message.payloadlen = strlen(message.payload);
-
-        ret = MQTTPublish(mqtt->client, acktopic, &message);
-        token = message.id;
-    }*/
-#else
+#elif defined(__QUARK_FREERTOS__)
+    ret = RC_ERROR_NOT_IMPLEMENT;
+#elif defined(__QUARK_LINUX__)
     ret = MQTTClient_publish(mqtt->client, acktopic, strlen(output), output, MQTT_RPC_QOS, 0, &token);
 #endif
     if (output != NULL) {
@@ -312,7 +304,9 @@ int mqtt_connect_to_remote(rc_mqtt_client* mqtt)
 #ifdef __QUARK_RTTHREAD__
     mqtt->conn_opts.password.cstring = passwd;
     ret = MQTTClient_connect(mqtt->client, &mqtt->conn_opts);
-#else
+#elif defined(__QUARK_FREERTOS__)
+    ret = RC_ERROR_NOT_IMPLEMENT;
+#elif defined(__QUARK_LINUX__)
     mqtt->conn_opts.password = passwd;
     ret = MQTTClient_connect(mqtt->client, &mqtt->conn_opts);
     mqtt->conn_opts.password = "";
@@ -400,7 +394,7 @@ int rc_mqtt_enable_auto_connect(mqtt_client client, rc_timer_manager mgr, mqtt_c
 
     mqtt->on_connect = callback;
 #ifdef __QUARK_RTTHREAD__
-#else
+#elif defined(__QUARK_LINUX__)
     mqtt->cur_reconnect_interval_index = 0;
     mqtt->last_reconnect_time = 0;
     mqtt->reconn_timer = rc_timer_create(mgr, MQ_TIMER_INTERVAL * 1000, MQ_TIMER_INTERVAL * 1000, mqtt_on_timer, mqtt);

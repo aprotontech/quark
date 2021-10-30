@@ -593,8 +593,8 @@ int http_request_build_header(rc_http_request_t* request)
     rc_buf_t* rbuf = NULL;
     HTTP_WRITE_BUF("%s %s HTTP/1.1\r\n", http_method_str(request->method), request->path);
     HTTP_WRITE_BUF("Host: %s\r\n", request->host);
-    HTTP_WRITE_BUF("Agent: %s\r\n", "RC-CLIENT(1.0)");
-    HTTP_WRITE_BUF("Connection: keep-alive\r\n");
+    HTTP_WRITE_BUF("User-Agent: %s\r\n", "RC-CLIENT(1.0)");
+    HTTP_WRITE_BUF("Accept: */*\r\n");
 
 
     p = request->headers.next;
@@ -604,18 +604,21 @@ int http_request_build_header(rc_http_request_t* request)
         p = p->next;
     }
 
-    if (request->rtype == HTTP_REQUEST_TYPE_NORMAL) {
-        int total = 0;
-        p = request->body.next;
-        rbuf = NULL;
-        while (p != &request->body) {
-            rbuf = (rc_buf_t*)p;
-            total += rbuf->length;
-            p = p->next;
+    if (request->method != HTTP_REQUEST_GET) { // get not send Content-Length
+        HTTP_WRITE_BUF("Connection: keep-alive\r\n");
+        if (request->rtype == HTTP_REQUEST_TYPE_NORMAL) {
+            int total = 0;
+            p = request->body.next;
+            rbuf = NULL;
+            while (p != &request->body) {
+                rbuf = (rc_buf_t*)p;
+                total += rbuf->length;
+                p = p->next;
+            }
+            HTTP_WRITE_BUF("Content-Length: %d\r\n", total);
+        } else if (request->rtype == HTTP_REQUEST_TYPE_CHUNK) {
+            HTTP_WRITE_BUF("Transfer-Encoding: chunked\r\n");
         }
-        HTTP_WRITE_BUF("Content-Length: %d\r\n", total);
-    } else if (request->rtype == HTTP_REQUEST_TYPE_CHUNK) {
-        HTTP_WRITE_BUF("Transfer-Encoding: chunked\r\n");
     }
     HTTP_WRITE_BUF("\r\n");
 

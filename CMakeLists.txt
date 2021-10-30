@@ -114,6 +114,10 @@ ADD_SUBDIRECTORY(framework/common)
 ADD_SUBDIRECTORY(framework/system)
 
 ADD_SUBDIRECTORY(driver/wifi)
+ADD_SUBDIRECTORY(driver/http)
+ADD_SUBDIRECTORY(driver/device)
+ADD_SUBDIRECTORY(driver/ans)
 
 ADD_SUBDIRECTORY(sdk)
 
+ADD_SUBDIRECTORY(demo/examples)

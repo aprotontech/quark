@@ -70,4 +70,7 @@ int http_request_uninit(http_request request);
 int http_post(http_manager mgr, const char* url, const char *ipaddr, char const *headers[], int head_count,
         const char* body, int length, int timeout, rc_buf_t* response);
 
+int http_get(http_manager mgr, const char* url, const char *ipaddr, 
+        const char* headers[], int head_count, int timeout, rc_buf_t* response);
+
 #endif

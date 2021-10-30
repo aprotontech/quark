@@ -24,7 +24,8 @@
 
 #ifdef __QUARK_RTTHREAD__
 #include "paho_mqtt.h"
-#else
+#elif defined(__QUARK_FREERTOS__)
+#elif defined(__QUARK_LINUX__)
 #include "MQTTClient.h"
 #endif
 
@@ -72,10 +73,28 @@ typedef struct _mqtt_subscribe_t {
 } mqtt_subscribe_t;
 
 #ifdef __QUARK_RTTHREAD__
+
 typedef MQTTClient* inner_mqtt_ptr;
 typedef int MQTTClient_deliveryToken;
 typedef MQTTMessage MQTTClient_message;
 typedef MQTTPacket_connectData MQTTClient_connectOptions;
+
+#elif defined(__QUARK_FREERTOS__)
+typedef struct _Empty_MQTTClient_connectOptions {
+
+} MQTTClient_connectOptions;
+
+typedef struct _Empty_MQTTClient_message {
+
+} MQTTClient_message;
+
+typedef void* inner_mqtt_ptr;
+typedef int MQTTClient_deliveryToken;
+
+#elif defined(__QUARK_LINUX__)
+#endif
+
+#if defined(__QUARK_FREERTOS__) || defined(__QUARK_RTTHREAD__)
 typedef void MQTTClient_connectionLost(void *context, char *cause);
 typedef int MQTTClient_messageArrived(void *context, char *topicName, int topicLen, MQTTClient_message *message);
 typedef void MQTTClient_deliveryComplete(void *context, MQTTClient_deliveryToken dt);
@@ -96,6 +115,7 @@ int MQTTClient_setCallbacks(void* handle, void *context, MQTTClient_connectionLo
 #define MQTTClient_connectOptions_initializer {}
 #define MQTTCLIENT_SUCCESS 0
 #define MQTTCLIENT_PERSISTENCE_NONE 0
+
 #endif
 
 

@@ -24,4 +24,6 @@ rc_thread rc_thread_create(rc_thread_function func, void* arg);
 
 int rc_thread_join(rc_thread thread);
 
+int rc_sleep(int ms);
+
 #endif
