@@ -1,0 +1,54 @@
+
+
+#include "env.h"
+#include "rc_device.h"
+
+#define DEVICE_SESSION_PATH "/api/devices"
+
+void sdk_device_token_callback(aidevice dev, const char* token, int timeout)
+{
+    rc_runtime_t* env = get_env_instance();
+    if (env != NULL && env->device == dev) {
+        if (env->session_chanage != NULL) {
+            env->session_chanage(token, timeout);
+        }
+    }
+}
+
+int device_regist(rc_runtime_t* env)
+{
+    ///////////////////////////////////////////////////
+    // DEVICE    
+    // get device url from ans service
+    const char* url = "http://82.157.138.167:8080";
+    if (url == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, ans get device service url failed");
+        return RC_ERROR_SDK_INIT;
+    }
+    
+    rc_buf_t* tmp = rc_buf_init(strlen(url) + strlen(DEVICE_SESSION_PATH) + 1);
+    strcpy(get_buf_ptr(tmp), url);
+    strcat(get_buf_ptr(tmp), DEVICE_SESSION_PATH);
+
+    rc_settings_t* settings = &env->settings;
+
+    env->device = rc_device_init(env->httpmgr, get_buf_ptr(tmp), (rc_hardware_info*)settings->hardware);
+    rc_buf_free(tmp);
+    if (env->device == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, device manager init failed");
+        return RC_ERROR_SDK_INIT;
+    }
+
+    int wifi_connected;
+    if (rc_get_wifi_status(&wifi_connected) != RC_SUCCESS) {
+        LOGI(SDK_TAG, "sdk init failed, get wifi status failed");
+        return RC_ERROR_SDK_INIT;
+    }
+
+    int rc = rc_device_regist(env->device, settings->app_id, settings->uuid, settings->app_secret, wifi_connected);
+    LOGI(SDK_TAG, "device regist app(%s), uuid(%s), secret(%s). response=%d", settings->app_id, settings->uuid, settings->app_secret, rc);
+    
+    rc_device_enable_auto_refresh(env->device, env->timermgr, sdk_device_token_callback);
+
+    return RC_SUCCESS;
+}

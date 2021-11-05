@@ -33,11 +33,7 @@ aidevice rc_device_init(http_manager mgr, const char* url, const rc_hardware_inf
 
 int rc_device_enable_auto_refresh(aidevice device, rc_timer_manager mgr, device_token_change callback);
 
-int rc_device_android_regist(aidevice device, const char* client_id, const char* public_key);
-
-int rc_device_storybox_regist(aidevice device, const char* app_id, const char* uuid, const char* app_secret);
-
-int rc_device_stp_regist(aidevice device, const char* client_id, const char* app_secret);
+int rc_device_regist(aidevice device, const char* app_id, const char* uuid, const char* app_secret, int at_once);
 
 int rc_device_refresh_atonce(aidevice device, int async);
 

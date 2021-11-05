@@ -39,6 +39,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
             LOGI(WIFI_TAG, "wifi event: SYSTEM_EVENT_STA_DISCONNECTED");
             esp_wifi_connect();
             xEventGroupClearBits(mgr->wifi_event_group, CONNECTED_BIT);
+            mgr->status = RC_WIFI_DISCONNECTED;
             if (mgr->on_changed != NULL) {
                 mgr->on_changed(mgr, RC_WIFI_DISCONNECTED);
             }
@@ -53,6 +54,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
             snprintf(mgr->ip, sizeof(mgr->ip), "%d.%d.%d.%d", IP2STR(&event->ip_info.ip));
             LOGI(WIFI_TAG, "ip event: SYSTEM_EVENT_STA_GOT_IP, ip=%s", mgr->ip);
             xEventGroupSetBits(mgr->wifi_event_group, CONNECTED_BIT);
+            mgr->status = RC_WIFI_CONNECTED;
 
             if (mgr->on_changed != NULL) {
                 mgr->on_changed(mgr, RC_WIFI_CONNECTED);

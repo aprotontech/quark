@@ -13,6 +13,7 @@
 
 typedef struct _wifi_manager_t {
     char ip[16];
+    char status;
     on_wifi_status_changed on_changed;
 
 #if defined(__QUARK_FREERTOS__)

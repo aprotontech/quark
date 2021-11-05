@@ -24,7 +24,8 @@
 #include "rc_mutex.h"
 
 #define DM_TAG "[DEVICE]"
-#define DM_TOKEN_REFRESH_INTERVAL 60
+#define DM_TOKEN_REFRESH_INTERVAL   10
+#define DM_MAX_FAILED_TIMES         60
 
 extern void md5tostr(const char *message, long len, char *output);
 
@@ -45,6 +46,7 @@ typedef struct _rc_device_t {
     rc_timer refresh_timer;
     device_token_change callback;
     int last_refresh_time;
+    int failed_times;
 
     int is_refreshing;
 
@@ -99,9 +101,9 @@ aidevice rc_device_init(http_manager mgr, const char* url, const rc_hardware_inf
     memset(device, 0, sizeof(rc_device_t));
 
     LOGI(DM_TAG, "rc_device_init: url(%s), mac(%s), bsn(%s), cpu(%s)",
-            url, hardware && hardware->mac ? hardware->mac : NULL,
-            hardware && hardware->bsn ? hardware->bsn : NULL,
-            hardware && hardware->cpu ? hardware->cpu : NULL);
+            url, hardware && hardware->mac ? hardware->mac : "",
+            hardware && hardware->bsn ? hardware->bsn : "",
+            hardware && hardware->cpu ? hardware->cpu : "");
 
     device->manager = mgr;
     device->url = rc_copy_string(url);
@@ -125,9 +127,10 @@ int real_update_device_info(cJSON* input, rc_device_t* device)
     char *session_token = NULL, *client_id = NULL, *app_id = NULL;
     LOGI(DM_TAG, "start to BEGIN_MAPPING_JSON");
     BEGIN_MAPPING_JSON(input, root)
-        JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, rc, str_rc)
+        int int_rc = 0;
+        JSON_OBJECT_EXTRACT_INT_TO_VALUE(root, rc, int_rc)
         
-        if (strcmp(str_rc, "0") == 0) {
+        if (int_rc == 200) {
             rc = RC_SUCCESS;
             JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, session, session_token)
             JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, clientId, client_id)
@@ -175,12 +178,13 @@ char* build_regist_json(rc_device_t* device, int now, const char* signature)
             JSON_OBJECT_ADD_STRING(root, appId, device->app_id);
         }
         if (device->uuid != NULL) {
-            JSON_OBJECT_ADD_STRING(root, uuid, device->uuid);
+            JSON_OBJECT_ADD_STRING(root, deviceId, device->uuid);
         }
         if (device->client_id != NULL) {
             JSON_OBJECT_ADD_STRING(root, clientId, device->client_id);
         }
         JSON_OBJECT_ADD_STRING(root, signature, signature)
+        JSON_OBJECT_ADD_STRING(root, deviceSecret, "xyz")
         JSON_OBJECT_ADD_STRING(root, time, now_str)
         if (device->hardware != NULL) {
             JSON_OBJECT_ADD_OBJECT(root, hardwareInfo)
@@ -221,6 +225,14 @@ int regist_device(rc_device_t* device, int now, const char* signature)
     rc_mutex_unlock(device->mobject);
 
     rc_buf_free(&response);
+
+    if (rc == RC_SUCCESS) {
+        device->failed_times = 0; // reset retry times
+    } else {
+        if (device->failed_times < DM_MAX_FAILED_TIMES) {
+            ++ device->failed_times;
+        }
+    }
 
     return rc;
 }
@@ -327,7 +339,7 @@ int query_device_session_token(rc_device_t* device)
     return rc;
 }
 
-int rc_device_storybox_regist(aidevice dev, const char* app_id, const char* uuid, const char* app_secret)
+int rc_device_regist(aidevice dev, const char* app_id, const char* uuid, const char* app_secret, int at_once)
 {
     int now = time(NULL);
     DECLEAR_REAL_VALUE(rc_device_t, device, dev);
@@ -344,46 +356,11 @@ int rc_device_storybox_regist(aidevice dev, const char* app_id, const char* uuid
     UPDATE_DEVICE_PROPERTY(device, app_secret, app_secret);
 
     device->regist_type = 1;
-    return query_device_session_token(device);
-}
-
-int rc_device_stp_regist(aidevice dev, const char* client_id, const char* app_secret)
-{
-    int now = time(NULL);
-    DECLEAR_REAL_VALUE(rc_device_t, device, dev);
-    LOGI(DM_TAG, "rc_device_stp_regist: device(%p), client_id(%s), app_secret(%s)",
-            dev, client_id, app_secret);
-
-    if (client_id == NULL || app_secret == NULL) {
-        LOGI(DM_TAG, "regist_device_stp input params has null");
-        return RC_ERROR_INVALIDATE_INPUT;
+    if (at_once) {
+        return query_device_session_token(device);
     }
 
-    UPDATE_DEVICE_PROPERTY(device, uuid, client_id);
-    UPDATE_DEVICE_PROPERTY(device, client_id, client_id);
-    UPDATE_DEVICE_PROPERTY(device, app_secret, app_secret);
-
-    device->regist_type = 1;
-    return query_device_session_token(device);
-}
-
-int rc_device_android_regist(aidevice dev, const char* client_id, const char* public_key)
-{
-    int now = time(NULL);
-    DECLEAR_REAL_VALUE(rc_device_t, device, dev);
-
-    LOGI(DM_TAG, "rc_device_android_regist, device(%p), client_id(%s), public_key(%s)",
-            dev, client_id, public_key);
-    if (client_id == NULL || public_key == NULL) {
-        LOGI(DM_TAG, "rc_device_android_regist input params has null");
-        return RC_ERROR_INVALIDATE_INPUT;
-    }
-
-    UPDATE_DEVICE_PROPERTY(device, client_id, client_id);
-    UPDATE_DEVICE_PROPERTY(device, public_key, public_key);
-
-    device->regist_type = 0;
-    return query_device_session_token(device);
+    return RC_SUCCESS;
 }
 
 int rc_device_uninit(aidevice dev)
@@ -420,7 +397,7 @@ int device_to_refresh_token(rc_timer timer, void* dev)
         LOGD(DM_TAG, "device_to_refresh_token");
         int now = time(NULL);
         if (now + device->timeout / 2 + 30 >= device->expire &&
-                device->last_refresh_time + DM_TOKEN_REFRESH_INTERVAL <= now) {
+                device->last_refresh_time + ((device->failed_times + 1) * DM_TOKEN_REFRESH_INTERVAL) <= now) {
             LOGI(DM_TAG, "token timeout, so to reget token");        
             if (query_device_session_token(device) == 0) {
                 if (device->callback != NULL) {
@@ -466,6 +443,8 @@ int rc_device_refresh_atonce(aidevice dev, int async)
         LOGE(DM_TAG, "device(%p) not enable auto refresh", device);
         return RC_ERROR_REGIST_DEVICE;
     }
+
+    device->failed_times = 0; // reset retry times
 
     // refresh in next 100ms
     return rc_timer_ahead_once(device->refresh_timer, 100);

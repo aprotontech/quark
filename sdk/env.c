@@ -20,6 +20,7 @@ void env_free(rc_runtime_t* env);
 
 int sync_server_time(rc_timer timer, void* dev);
 int rc_enable_ntp_sync_time();
+int device_regist(rc_runtime_t* env);
 
 int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status);
 
@@ -74,6 +75,11 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info, rc_settings_
     env->wifimgr = wifi_manager_init(quark_on_wifi_status_changed);
     if (env->wifimgr == NULL) {
         LOGI(SDK_TAG, "sdk init failed, wifi manager init failed");
+        env_free(env);
+        return RC_ERROR_SDK_INIT;
+    }
+
+    if (device_regist(env) != 0) {
         env_free(env);
         return RC_ERROR_SDK_INIT;
     }

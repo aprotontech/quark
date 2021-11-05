@@ -16,6 +16,9 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret, int test_time
 
     rc_settings_init(&settings);
     settings.wifi_status_callback = watch_wifi_status_change;
+    settings.app_id = "testapp";
+    settings.app_secret = "xyzdfda";
+    settings.uuid = "uuid";
 
     // init sdk
     RC_EXCEPT_SUCCESS(rc_sdk_init("test", 1, &settings));

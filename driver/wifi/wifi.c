@@ -6,6 +6,7 @@ wifi_manager wifi_manager_init(on_wifi_status_changed on_changed)
     wifi_manager_t* mgr = (wifi_manager_t*)rc_malloc(sizeof(wifi_manager_t));
     memset(mgr, 0, sizeof(wifi_manager_t));
     mgr->on_changed = on_changed;
+    mgr->status = RC_WIFI_DISCONNECTED;
     return mgr;
 }
 
@@ -25,10 +26,7 @@ int wifi_get_local_ip(wifi_manager wm, char* ip, int* wifi_status)
             memcpy(ip, mgr->ip, sizeof(mgr->ip));
         }
         if (wifi_status != NULL) {
-#if defined(__QUARK_FREERTOS__)
-            extern int _get_wifi_connect_bit(EventGroupHandle_t wifi_event_group);
-            *wifi_status = _get_wifi_connect_bit(mgr->wifi_event_group);
-#endif
+            *wifi_status = mgr->status;
         }
 
         return ip == NULL && wifi_status == NULL ? RC_ERROR_INVALIDATE_INPUT : RC_SUCCESS;
