@@ -31,7 +31,7 @@ typedef struct cJSON cJSON;
 typedef int (*rc_netcmd_dispatch_callback)(const char* key, cJSON* data);
 typedef int (*rc_netrpc_dispatch_callback)(const char* key, cJSON* data, rc_buf_t* response);
 
-typedef int (*rc_time_callback)(int sec, int usec);
+typedef int (*rc_sync_time_callback)(int sec, int usec);
 
 typedef int (*rc_property_change)(const char* name, int type, void* value);
 
@@ -63,7 +63,7 @@ typedef struct _rc_settings_t {
 
     rc_wifi_status_callback wifi_status_callback;
 
-    rc_time_callback time_update;
+//    rc_sync_time_callback time_update;
     int time_notify_min_diff;
 
     int property_change_report;
@@ -74,6 +74,7 @@ typedef struct _rc_settings_t {
     char enable_keepalive; 
     char max_device_retry_times;
     char auto_watch_wifi_status;
+
 } rc_settings_t;
 
 const char* rc_sdk_version();
@@ -84,5 +85,30 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info, rc_settings_
 
 int rc_sdk_uninit();
 
+///////////////////////
+// DEVICE
+const char* rc_get_app_id();
+const char* rc_get_client_id();
+const char* rc_get_session_token();
+
+///////////////////////
+// PROPERTY 
+int rc_property_define(const char* name, int type, void* init_value, rc_property_change on_change);
+int rc_property_set(const char* name, void* value);
+int rc_property_flush();
+int rc_property_get_values(const char* keys, ...);
+
+
+///////////////////////
+// TIMER
+typedef void* rc_timer;
+typedef int (*rc_timer_callback)(rc_timer timer, void* usr_data);
+rc_timer rc_set_interval(int tick_ms, int repeat_ms, rc_timer_callback on_time, void* usr_data);
+int rc_ahead_interval(rc_timer timer, int next_tick_ms);
+int rc_clear_interval(rc_timer timer);
+
+///////////////////////
+// HTTP
+int rc_http_quark_post(const char* service_name, const char* path, const char* body, int timeout, rc_buf_t* response);
 
 #endif

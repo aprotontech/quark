@@ -22,35 +22,21 @@
 #include "rc_json.h"
 #include "rc_crypt.h"
 
-char* ans_json_body(rc_ans_query_t* query)
+char* ans_build_request_json_body(rc_ans_config_t* config)
 {
     char* entype = "none";
     char* output = NULL;
-#ifdef RC_ENABLE_RSA
-    if (query->encrypt_type != ANS_ENCRYPT_TYPE_NONE && query->encrypt_key == NULL) {
-        query->encrypt_type = ANS_ENCRYPT_TYPE_NONE;
-    }
-    else if (query->encrypt_type == ANS_ENCRYPT_TYPE_RSA_DEVICE) {
-        entype = "rsa";
-    }
-    else if (query->encrypt_type == ANS_ENCRYPT_TYPE_RSA_COMMON) {
-        entype = "rsa-common";
-    }
-#else
-    query->encrypt_type = ANS_ENCRYPT_TYPE_NONE;
-#endif
 
     BEGIN_JSON_OBJECT(body)
-        if (query->app_id != NULL) {
-            JSON_OBJECT_ADD_STRING(body, appId, query->app_id)
+        if (config->app_id != NULL) {
+            JSON_OBJECT_ADD_STRING(body, appId, config->app_id)
         }
-        if (query->client_id != NULL) {
-            JSON_OBJECT_ADD_STRING(body, clientId, query->client_id)
+        if (config->client_id != NULL) {
+            JSON_OBJECT_ADD_STRING(body, clientId, config->client_id)
         }
-        JSON_OBJECT_ADD_STRING(body, produciton, query->production)
 
         JSON_OBJECT_ADD_ITEM(body, services,
-                cJSON_CreateStringArray((const char**)query->services, query->service_count));
+                cJSON_CreateStringArray((const char**)config->input_services, config->input_service_count));
         JSON_OBJECT_ADD_STRING(body, encryptType, entype)
 
         output = JSON_TO_STRING(body);
@@ -93,6 +79,7 @@ int json_to_service(rcservice_mgr_t* service_mgr, cJSON* v, int encrypt_type, rc
         JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, service, tmp.service)
         JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, uri, tmp.uri)
         JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, host, tmp.host)
+        JSON_OBJECT_EXTRACT_INT_TO_VALUE(root, port, tmp.port)
         JSON_OBJECT_EXTRACT_INT_TO_VALUE(root, validtm, tmp.validtm)
         JSON_OBJECT_EXTRACT_ARRAY(root, ips)
         nips = cJSON_GetArraySize(JSON(ips));
@@ -138,8 +125,8 @@ int json_to_service(rcservice_mgr_t* service_mgr, cJSON* v, int encrypt_type, rc
         JSON_ARRAY_END_FOREACH(ips, itm)
     END_MAPPING_JSON(root)
 
-    LOGI(SC_TAG, "item={service(%s),uri(%s),host(%s),validtm(%d)}",
-            s->service, s->uri, s->host, s->validtm);
+    LOGI(SC_TAG, "item={service(%s),uri(%s),host(%s),port(%d),validtm(%d)}",
+            s->service, s->uri, s->host, s->port, s->validtm);
     for (i = 0; i < s->ip_count; ++ i) {
         LOGI(SC_TAG, "ip[%d]=%s", i, s->ips[i]);
     }

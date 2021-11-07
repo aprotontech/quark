@@ -23,24 +23,25 @@
 
 typedef void* ans_service;
 
-typedef struct _rc_ans_query_t {
+typedef struct _rc_ans_config_t {
     char* app_id;
     char* client_id;
-    char* production;
-    char** services;
-    int service_count;
+    // ans query service url and host(can be null)
+    char* url;
+    char* host;
+
+    char** input_services;
+    int input_service_count;
 
     int encrypt_type;
     char* encrypt_key;
-} rc_ans_query_t;
+} rc_ans_config_t;
 
 enum {
     ANS_ENCRYPT_TYPE_NONE = 0,
-    ANS_ENCRYPT_TYPE_RSA_DEVICE,
-    ANS_ENCRYPT_TYPE_RSA_COMMON,
 };
 
-ans_service rc_service_init(http_manager mgr, const char* url, rc_ans_query_t* query);
+ans_service rc_service_init(rc_ans_config_t* query, http_manager mgr);
 
 int rc_service_dns_resolve(ans_service ans, const char* host, struct in_addr* ip);
 

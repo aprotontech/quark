@@ -30,7 +30,8 @@ typedef char* local_config_string_t[MAX_ANS_SERVICES][4];
 
 typedef struct _rc_service_t {
     int validtm;
-    int ip_count;
+    short port;
+    short ip_count;
     char* service;
     char* uri;
     char* host;
@@ -38,19 +39,21 @@ typedef struct _rc_service_t {
 } rc_service_t;
 
 typedef struct _rcservice_mgr_t {
-    char* url;
     char* json;
     int json_len;
-    char* encrypt_key;
-    int encrypt_type;
+
+    rc_ans_config_t config;
+
     rsa_crypt rsa;
-    http_manager manager;
+    http_manager httpmgr;
 
     map_t smap;
 
     map_t ipmap;
 
     rc_mutex mobject;
+
+    rc_buf_t buff;
     
 } rcservice_mgr_t;
 

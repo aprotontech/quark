@@ -117,6 +117,7 @@ ADD_SUBDIRECTORY(driver/wifi)
 ADD_SUBDIRECTORY(driver/http)
 ADD_SUBDIRECTORY(driver/device)
 ADD_SUBDIRECTORY(driver/ans)
+#ADD_SUBDIRECTORY(driver/mqtt)
 
 ADD_SUBDIRECTORY(sdk)
 

@@ -21,7 +21,9 @@
 #include "rc_json.h"
 #include "rc_system.h"
 
-extern char* ans_json_body(rc_ans_query_t* query);
+#define ANS_SERVICE_SIZE (((sizeof(rcservice_mgr_t) + 1023) / 1024) * 1024)
+
+extern char* ans_build_request_json_body(rc_ans_config_t* query);
 extern int parse_json_config(rcservice_mgr_t* service_mgr, const char* json, int encrypt, map_t* smap);
 
 int free_hash_item(any_t n, const char* key, any_t val)
@@ -55,54 +57,77 @@ map_t build_dns_map(map_t smap)
     return dnsmap;
 }
 
-ans_service rc_service_init(http_manager mgr, const char* url, rc_ans_query_t* query)
+char* safe_copy_string_to_buffer(rc_buf_t* buf, char* s)
+{
+    if (s == NULL) return NULL;
+
+    int len = strlen(s);
+    if (rc_buf_append(buf, s, len + 1) == NULL) {
+        return NULL;
+    }
+
+    return RC_BUF_PTR(buf);
+}
+
+ans_service rc_service_init(rc_ans_config_t* config, http_manager hmgr)
 {
     int len = 0;
-    rcservice_mgr_t* service_mgr = (rcservice_mgr_t*)rc_malloc(sizeof(rcservice_mgr_t));
-    if (service_mgr == NULL) {
+    rcservice_mgr_t* mgr = (rcservice_mgr_t*)rc_malloc(ANS_SERVICE_SIZE);
+    if (mgr == NULL) {
         LOGI(SC_TAG, "init service mgr failed with null");
         return NULL;
     }
 
-    service_mgr->url = rc_copy_string(url);
-    service_mgr->smap = hashmap_new();
-    service_mgr->ipmap = hashmap_new();
-    service_mgr->json = ans_json_body(query);
-    service_mgr->json_len = strlen(service_mgr->json);
-    service_mgr->manager = mgr;
-    service_mgr->encrypt_type = query->encrypt_type;
-    service_mgr->encrypt_key = service_mgr->encrypt_type != ANS_ENCRYPT_TYPE_NONE ? 
-        rc_copy_string(query->encrypt_key) : NULL;
-    service_mgr->rsa = rc_rsa_crypt_init(service_mgr->encrypt_key);
-    service_mgr->mobject = rc_mutex_create(NULL);
+    mgr->buff = rc_buf_stack();
+    mgr->buff.total = ANS_SERVICE_SIZE - sizeof(rcservice_mgr_t) + sizeof(mgr->buff.buf);
     
-    LOGI(SC_TAG, "new ans service(%p)", service_mgr);
-    return service_mgr;
+    // copy input config info
+    mgr->config = *config;
+    mgr->config.input_service_count = 0;
+    mgr->config.input_services = NULL;
+    mgr->config.app_id = safe_copy_string_to_buffer(&mgr->buff, config->app_id);
+    mgr->config.client_id = safe_copy_string_to_buffer(&mgr->buff, config->client_id);
+    mgr->config.url = safe_copy_string_to_buffer(&mgr->buff, config->url);
+    mgr->config.host = safe_copy_string_to_buffer(&mgr->buff, config->host);
+    mgr->config.encrypt_key = safe_copy_string_to_buffer(&mgr->buff, config->encrypt_key);
+
+    mgr->smap = hashmap_new();
+    mgr->ipmap = hashmap_new();
+    mgr->json = safe_copy_string_to_buffer(&mgr->buff, ans_build_request_json_body(config));
+    mgr->json_len = strlen(mgr->json);
+    mgr->httpmgr = hmgr;
+    if (mgr->config.encrypt_type != ANS_ENCRYPT_TYPE_NONE) {
+        mgr->rsa = rc_rsa_crypt_init(mgr->config.encrypt_key);
+    }
+    mgr->mobject = rc_mutex_create(NULL);
+    
+    LOGI(SC_TAG, "new ans service(%p)", mgr);
+    return mgr;
 }
 
 int service_set_config(ans_service ans, const char* config, int force_none_encrypt)
 {
     int rc = 0;
     map_t new_smap = NULL, new_dnsmap = NULL;
-    DECLEAR_REAL_VALUE(rcservice_mgr_t, service_mgr, ans);
-    rc_mutex_lock(service_mgr->mobject);
-    rc = parse_json_config(service_mgr, config, force_none_encrypt ? ANS_ENCRYPT_TYPE_NONE : service_mgr->encrypt_type, &new_smap);
+    DECLEAR_REAL_VALUE(rcservice_mgr_t, mgr, ans);
+    rc_mutex_lock(mgr->mobject);
+    rc = parse_json_config(mgr, config, force_none_encrypt ? ANS_ENCRYPT_TYPE_NONE : mgr->config.encrypt_type, &new_smap);
     if (rc == 0 && new_smap != NULL) {
-        if (service_mgr->smap != NULL) {
-            hashmap_iterate(service_mgr->smap, free_hash_item, NULL);
-            hashmap_free(service_mgr->smap);
+        if (mgr->smap != NULL) {
+            hashmap_iterate(mgr->smap, free_hash_item, NULL);
+            hashmap_free(mgr->smap);
         }
 
-        if (service_mgr->ipmap != NULL) {
-            hashmap_iterate(service_mgr->ipmap, free_hash_item, NULL);
-            hashmap_free(service_mgr->ipmap);
+        if (mgr->ipmap != NULL) {
+            hashmap_iterate(mgr->ipmap, free_hash_item, NULL);
+            hashmap_free(mgr->ipmap);
         }
 
-        service_mgr->smap = new_smap;
-        service_mgr->ipmap = build_dns_map(service_mgr->smap);
+        mgr->smap = new_smap;
+        mgr->ipmap = build_dns_map(mgr->smap);
     }
 
-    rc_mutex_unlock(service_mgr->mobject);
+    rc_mutex_unlock(mgr->mobject);
     
     return rc;
 }
@@ -111,12 +136,13 @@ int rc_service_reload_config(ans_service ans)
 {
     int rc = 0;
     rc_buf_t response = rc_buf_stack();
-    DECLEAR_REAL_VALUE(rcservice_mgr_t, service_mgr, ans);
+    DECLEAR_REAL_VALUE(rcservice_mgr_t, mgr, ans);
+    const char* headers[1] = {mgr->config.host};
 
-    rc = http_post(service_mgr->manager, service_mgr->url, NULL, NULL, 0,
-            service_mgr->json, service_mgr->json_len, 3000, &response);
+    rc = http_post(mgr->httpmgr, mgr->config.url, NULL, headers, headers[0] != NULL ? 1 : 0,
+            mgr->json, mgr->json_len, 3000, &response);
     LOGI(SC_TAG, "url(%s), request(%s), status(%d), response(%s)",
-            service_mgr->url, service_mgr->json, rc, rc == 200 ? get_buf_ptr(&response) : "");
+            mgr->config.url, mgr->json, rc, rc == 200 ? get_buf_ptr(&response) : "");
 
     if (rc != 200) {
         return RC_ERROR_SVRMGR_RELOAD;
@@ -130,33 +156,26 @@ int rc_service_reload_config(ans_service ans)
 
 int rc_service_uninit(ans_service ans)
 {
-    DECLEAR_REAL_VALUE(rcservice_mgr_t, service_mgr, ans);
-    LOGI(SC_TAG, "free ans service(%p)", service_mgr);
+    DECLEAR_REAL_VALUE(rcservice_mgr_t, mgr, ans);
+    LOGI(SC_TAG, "free ans service(%p)", mgr);
 
-    if (service_mgr->smap != NULL) {
-        hashmap_iterate(service_mgr->smap, free_hash_item, NULL);
-        hashmap_free(service_mgr->smap);
-        service_mgr->smap = NULL;
+    if (mgr->smap != NULL) {
+        hashmap_iterate(mgr->smap, free_hash_item, NULL);
+        hashmap_free(mgr->smap);
+        mgr->smap = NULL;
     }
 
-    if (service_mgr->ipmap != NULL) {
-        hashmap_iterate(service_mgr->ipmap, free_hash_item, NULL);
-        hashmap_free(service_mgr->ipmap);
-        service_mgr->ipmap = NULL;
+    if (mgr->ipmap != NULL) {
+        hashmap_iterate(mgr->ipmap, free_hash_item, NULL);
+        hashmap_free(mgr->ipmap);
+        mgr->ipmap = NULL;
     }
 
-    if (service_mgr->encrypt_key != NULL) {
-        rc_free(service_mgr->encrypt_key);
-        service_mgr->encrypt_key = NULL;
-    }
-
-    service_mgr->manager = NULL;
-    rc_rsa_crypt_uninit(service_mgr->rsa);
-    rc_free(service_mgr->url);
-    free(service_mgr->json);
-    rc_mutex_destroy(service_mgr->mobject);
-    rc_free(service_mgr);
-    service_mgr = NULL;
+    mgr->httpmgr = NULL;
+    rc_rsa_crypt_uninit(mgr->rsa);
+    rc_mutex_destroy(mgr->mobject);
+    rc_free(mgr);
+    mgr = NULL;
 
     return RC_SUCCESS;
 }
@@ -165,16 +184,16 @@ const char* rc_service_get_url(ans_service ans, const char* service)
 {
     any_t val = NULL;
     const char* url = "";
-    rcservice_mgr_t* service_mgr = (rcservice_mgr_t*)ans;
-    if (service_mgr == NULL) {
+    rcservice_mgr_t* mgr = (rcservice_mgr_t*)ans;
+    if (mgr == NULL) {
         return "";
     }
     
-    rc_mutex_lock(service_mgr->mobject);
-    if (MAP_OK == hashmap_get(service_mgr->smap, (char*)service, &val) && val != NULL) {
+    rc_mutex_lock(mgr->mobject);
+    if (MAP_OK == hashmap_get(mgr->smap, (char*)service, &val) && val != NULL) {
         url = ((rc_service_t*)val)->uri;
     }
-    rc_mutex_unlock(service_mgr->mobject);
+    rc_mutex_unlock(mgr->mobject);
 
     return url;
 }
@@ -183,19 +202,16 @@ int rc_service_get_info(ans_service ans, const char* name, char domain[30], char
 {
     int rc = -1;
     any_t val = NULL;
-    rcservice_mgr_t* service_mgr = (rcservice_mgr_t*)ans;
-    if (service_mgr == NULL) {
-        return -1;
-    }
+    DECLEAR_REAL_VALUE(rcservice_mgr_t, mgr, ans);
     
-    rc_mutex_lock(service_mgr->mobject);
-    if (MAP_OK == hashmap_get(service_mgr->smap, (char*)name, &val) && val != NULL) {
+    rc_mutex_lock(mgr->mobject);
+    if (MAP_OK == hashmap_get(mgr->smap, (char*)name, &val) && val != NULL) {
         strcpy(uri, ((rc_service_t*)val)->uri);
         strcpy(domain, ((rc_service_t*)val)->host);
         strcpy(ip, ((rc_service_t*)val)->ips[0]);
         rc = 0;
     }
-    rc_mutex_unlock(service_mgr->mobject);
+    rc_mutex_unlock(mgr->mobject);
 
     return rc;
     
@@ -205,13 +221,13 @@ const char* rc_service_get_ip(ans_service ans, const char* service)
 {
     any_t val = NULL;
     const char* ip = "";
-    rcservice_mgr_t* service_mgr = (rcservice_mgr_t*)ans;
-    if (service_mgr == NULL) {
+    rcservice_mgr_t* mgr = (rcservice_mgr_t*)ans;
+    if (mgr == NULL) {
         return "";
     }
     
-    rc_mutex_lock(service_mgr->mobject);
-    if (MAP_OK == hashmap_get(service_mgr->smap, (char*)service, &val) && val != NULL) {
+    rc_mutex_lock(mgr->mobject);
+    if (MAP_OK == hashmap_get(mgr->smap, (char*)service, &val) && val != NULL) {
         if (((rc_service_t*)val)->ip_count) {
             ip = ((rc_service_t*)val)->ips[0];
             LOGI(SC_TAG, "service(%s) ---> ip(%s)", service, ip);
@@ -220,23 +236,23 @@ const char* rc_service_get_ip(ans_service ans, const char* service)
             ip = "";
         }
     }
-    rc_mutex_unlock(service_mgr->mobject);
+    rc_mutex_unlock(mgr->mobject);
 
     return ip;
 }
 
 int rc_service_dns_resolve(ans_service ans, const char* host, struct in_addr* ip)
 {
-    DECLEAR_REAL_VALUE(rcservice_mgr_t, service_mgr, ans);
-    if (host != NULL && ip != NULL && service_mgr->ipmap != NULL) {
+    DECLEAR_REAL_VALUE(rcservice_mgr_t, mgr, ans);
+    if (host != NULL && ip != NULL && mgr->ipmap != NULL) {
         any_t val = NULL;
-        rc_mutex_lock(service_mgr->mobject);
-        if (MAP_OK == hashmap_get(service_mgr->ipmap, (char*)host, &val) && val != NULL) {
+        rc_mutex_lock(mgr->mobject);
+        if (MAP_OK == hashmap_get(mgr->ipmap, (char*)host, &val) && val != NULL) {
             *ip = *((struct in_addr*)val);
-            rc_mutex_unlock(service_mgr->mobject);
+            rc_mutex_unlock(mgr->mobject);
             return RC_SUCCESS;
         }
-        rc_mutex_unlock(service_mgr->mobject);
+        rc_mutex_unlock(mgr->mobject);
     }
 
     return RC_ERROR_SVRMGR_NODNS;

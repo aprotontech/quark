@@ -106,7 +106,7 @@ http_client http_client_init(http_manager mgr, const char* domain, const char *i
         return NULL;
     }
 
-    LOGI(HC_TAG, "new http client(%p)", client);
+    //LOGI(HC_TAG, "new http client(%p)", client);
 //    client->timeout = 5;
     return client;
 }

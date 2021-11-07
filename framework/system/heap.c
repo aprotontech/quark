@@ -35,7 +35,9 @@ void swap_timer_node(rc_timer_t** heap, int i, int j)
     heap[j] = p;
     heap[i]->idx = i;
     heap[j]->idx = j;
-    LOGI("TIME", "swap index(%d)<-->(%d)", i, j);
+#if TIMER_BUFFER_LOGGER
+    LOGI("TIME", "swap timer[%d](%p)<-->[%d](%p)", i, heap[i]->callback, j, heap[j]->callback);
+#endif
 }
 
 int adjust_node(rc_timer_t** heap, int total, int i)
@@ -45,7 +47,7 @@ int adjust_node(rc_timer_t** heap, int total, int i)
     int b;
     rc_timer_t* p;
     while (i != 0) {
-        j = i / 2;
+        j = (i - 1) / 2;
         c = compare_timer(heap[i], heap[j]);
         if (c >= 0) break; 
 
@@ -67,17 +69,17 @@ int adjust_node(rc_timer_t** heap, int total, int i)
                     i = j;
                 }
                 else { // Ti > Tj && Ti > Tj+1
-                    if (compare_timer(heap[j], heap[j + 1]) < 0) { // Ti > Tj +1 > Tj 
+                    if (compare_timer(heap[j], heap[j + 1]) < 0) { // Ti > Tj+1 > Tj 
                         swap_timer_node(heap, i, j);
                         i = j;
                     }
-                    else {
+                    else { // Ti>Tj>=Tj+1
                         swap_timer_node(heap, i, j + 1);
                         i = j + 1;
                     }
                 }
             }
-            else if (b > 0) { // Tj+1 < Ti < Tj
+            else if (b > 0) { // Tj+1 < Ti <= Tj
                 swap_timer_node(heap, i, j + 1);
                 i = j + 1;
             }

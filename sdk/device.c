@@ -2,6 +2,7 @@
 
 #include "env.h"
 #include "rc_device.h"
+#include "property.h"
 
 #define DEVICE_SESSION_PATH "/api/devices"
 
@@ -20,7 +21,7 @@ int device_regist(rc_runtime_t* env)
     ///////////////////////////////////////////////////
     // DEVICE    
     // get device url from ans service
-    const char* url = "http://82.157.138.167:8080";
+    const char* url = QUARK_API_URL;
     if (url == NULL) {
         LOGI(SDK_TAG, "sdk init failed, ans get device service url failed");
         return RC_ERROR_SDK_INIT;
@@ -49,6 +50,17 @@ int device_regist(rc_runtime_t* env)
     LOGI(SDK_TAG, "device regist app(%s), uuid(%s), secret(%s). response=%d", settings->app_id, settings->uuid, settings->app_secret, rc);
     
     rc_device_enable_auto_refresh(env->device, env->timermgr, sdk_device_token_callback);
+
+    ///////////////////////////////////////////////////
+    // PROPERTY
+    env->properties = property_manager_init(env, settings->property_change_report, settings->porperty_retry_interval);
+    if (env->properties == NULL) {
+        LOGE(SDK_TAG, "property_manager_init failed");
+        return RC_ERROR_SDK_INIT;
+    }
+
+    // define localip property
+    rc_property_define("localIp", RC_PROPERTY_STRING_VALUE, NULL, NULL);
 
     return RC_SUCCESS;
 }

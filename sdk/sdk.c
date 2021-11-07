@@ -17,14 +17,35 @@ rc_settings_t* rc_settings_init(rc_settings_t* setting)
     setting->property_change_report = 1;
     setting->porperty_retry_interval = 30 * 1000;
     setting->enable_ntp_time_sync = 1;
-    setting->hardware = rc_malloc(sizeof(rc_hardware_info));
-    memset(setting->hardware, 0, sizeof(rc_hardware_info));
-
-    rc_hardware_info* hi = (rc_hardware_info*)setting->hardware;
-#if defined(__QUARK_FREERTOS__)
-    hi->bsn = "testdev";
-    hi->cpu = "abcdef";
-    hi->mac = "123456";
-#endif
     return setting;
+}
+
+const char* rc_get_app_id()
+{
+    rc_runtime_t* env = get_env_instance();
+    if (env != NULL && env->device != NULL) {
+        return get_device_app_id(env->device);
+    }
+
+    return NULL;
+}
+
+const char* rc_get_client_id()
+{
+    rc_runtime_t* env = get_env_instance();
+    if (env != NULL && env->device != NULL) {
+        return get_device_client_id(env->device);
+    }
+
+    return NULL;
+}
+
+const char* rc_get_session_token()
+{
+    rc_runtime_t* env = get_env_instance();
+    if (env != NULL && env->device != NULL) {
+        return get_device_session_token(env->device);
+    }
+
+    return NULL;
 }

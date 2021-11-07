@@ -166,7 +166,7 @@ http_request http_request_init(http_manager mgr, const char* raw_url, const char
     LL_init(&request->headers);
     LL_init(&request->res_body);
     init_http_parser(request);
-    LOGI(RC_TAG, "new http request(%p)", request);
+    //LOGI(RC_TAG, "new http request(%p)", request);
     return request;
 }
 
@@ -306,12 +306,17 @@ int http_request_recv_response(rc_http_request_t* request)
         RC_BUF_CLEAN(request->buf);
         memset(get_buf_ptr(request->buf), 0, RC_BUF_LEFT_SIZE(request->buf));
         len = http_client_recv(request->client, 
-                RC_BUF_PTR(request->buf), RC_BUF_LEFT_SIZE(request->buf), &request->timeout);
+                get_buf_ptr(request->buf), RC_BUF_LEFT_SIZE(request->buf), &request->timeout);
         if (len <= 0) { // recv eof or timeout
             LOGI(RC_TAG, "request(%p) recv eof or timeout, ret(%d)", request, len);
             return RC_ERROR_HTTP_RECV;
         }
 
+        if (RC_BUF_LEFT_SIZE(request->buf) > 0) {
+            // this is just for debuger printer, real response is not need ending with '\0'
+            // the if sentence can be removed
+            get_buf_ptr(request->buf)[len] = '\0';
+        }
         if (http_request_on_recv(request, get_buf_ptr(request->buf), len) != 0) {
             return RC_ERROR_HTTP_RECV;
         }
@@ -605,7 +610,7 @@ int init_http_parser(rc_http_request_t* request)
 
 int http_request_build_header(rc_http_request_t* request)
 {
-    char* buf = RC_BUF_PTR(request->buf);
+    char* buf = get_buf_ptr(request->buf);
     size_t len = request->buf->total - request->buf->length;
     int r = 0;
     list_link_t* p = NULL;
@@ -643,7 +648,7 @@ int http_request_build_header(rc_http_request_t* request)
     }
     HTTP_WRITE_BUF("\r\n");
 
-    request->buf->length += buf - RC_BUF_PTR(request->buf);
+    request->buf->length += buf - get_buf_ptr(request->buf);
     
     return 0;
 }
@@ -656,19 +661,19 @@ int http_request_get_response(http_request _request, int* status_code, rc_buf_t*
     }
 
     if (obuf != NULL) {
-        if (LL_isspin(&request->res_body)) {
+        if (LL_isspin(&request->res_body)) { // not found any response
             obuf->usr_buf = NULL;
             obuf->free = 0;
             obuf->total = sizeof(obuf->buf);
         }
-        else if (request->res_body.next->next == &request->res_body) {
+        else if (request->res_body.next->next == &request->res_body) { // only has one buffer
             rc_buf_t* buf = (rc_buf_t*)request->res_body.next;
             obuf->total = buf->total;
             obuf->length = buf->length;
             obuf->free = 0;
             obuf->usr_buf = get_buf_ptr(buf);
         }
-        else {
+        else { // response is too long, has more than two buffer
             int total = 0;
             list_link_t* p = request->res_body.next;
             while (p != &request->res_body) {
@@ -678,9 +683,9 @@ int http_request_get_response(http_request _request, int* status_code, rc_buf_t*
             }
 
             obuf->length = total;
-            obuf->total = total;
+            obuf->total = total + 1; // +1 is for '\0'(real response is not need it, just for debuger print)
             obuf->free = 1;
-            obuf->usr_buf = rc_malloc(total);
+            obuf->usr_buf = rc_malloc(obuf->total);
             LOGI("[REQUEST]", "total memory(%d)", total);
             
             char* ptr = obuf->usr_buf;
@@ -694,6 +699,12 @@ int http_request_get_response(http_request _request, int* status_code, rc_buf_t*
                 p = p->next;
             }
         }
+    }
+
+    if (RC_BUF_LEFT_SIZE(obuf) > 0) {
+        // this is just for debuger printer, real response is not need ending with '\0'
+        // the if sentence can be removed
+        RC_BUF_PTR(obuf)[0] = '\0';
     }
     return 0;
 }

@@ -36,10 +36,11 @@ int http_get(http_manager mgr, const char* url, const char *ipaddr,
 
     http_request_get_response(request, &rc, response);
     if (!response->free && response->length) {
-        char* p = (char*)rc_malloc(response->length);
+        char* p = (char*)rc_malloc(response->length + 1);
         memcpy(p, response->usr_buf, response->length);
         response->usr_buf = p;
         response->free = 1;
+        RC_BUF_PTR(response)[0] = '\0'; // is just for debuger print
     }
 
     http_request_uninit(request);

@@ -30,6 +30,10 @@
 #define TIMER_STOP_FLAG 2144937600
 #define TM_TAG "[TIMER]"
 
+
+// enable to print timer debugger logger?
+#define TIMER_BUFFER_LOGGER 0
+
 typedef struct _rc_timer_t {
     void* usr_data;
     struct timeval next_tick;

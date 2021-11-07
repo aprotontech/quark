@@ -144,4 +144,12 @@
 #define END_JSON_ARRAY_ADD_OBJECT_ITEM(arr, itm) \
     }
 
+#define QUARK_API_RESPONSE_BEGIN(root, result_rc) \
+    { \
+        JSON_OBJECT_EXTRACT_INT_TO_VALUE(root, rc, result_rc); \
+        if (result_rc == 200) {
+
+#define QUARK_API_RESPONSE_END(root) \
+        } \
+    }
 #endif

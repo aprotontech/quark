@@ -12,6 +12,14 @@ int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status)
         if (token == NULL || token[0] == '\0') { // device is not registed, so must 
             rc_device_refresh_atonce(env->device, 1);
         }
+
+        if (time(NULL) < 1000000000 && env->sync_timer != NULL) { // time is not synced
+            rc_timer_ahead_once(env->sync_timer, 100); // sync time atonce
+        }
+
+        char ip[16] = {0};
+        wifi_get_local_ip(env->wifimgr, ip, NULL);
+        rc_property_set("localIp", ip);
     }
     return 0;
 }

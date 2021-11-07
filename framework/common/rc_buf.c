@@ -95,3 +95,14 @@ rc_buf_t rc_buf_usrdata(char* usrbuf, int len)
     buf.total = len;
     return buf;
 }
+
+rc_buf_t* rc_buf_append(rc_buf_t* buf, char* data, int len)
+{
+    if (buf == NULL || RC_BUF_LEFT_SIZE(buf) <= len) {
+        return NULL;
+    }
+
+    memcpy(get_buf_ptr(buf) + buf->length, data, len);
+    buf->length += len;
+    return buf;
+}

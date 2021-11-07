@@ -16,9 +16,9 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret, int test_time
 
     rc_settings_init(&settings);
     settings.wifi_status_callback = watch_wifi_status_change;
-    settings.app_id = "testapp";
-    settings.app_secret = "xyzdfda";
-    settings.uuid = "uuid";
+    settings.app_id = app_id;
+    settings.app_secret = app_secret;
+    settings.uuid = NULL;
 
     // init sdk
     RC_EXCEPT_SUCCESS(rc_sdk_init("test", 1, &settings));
@@ -34,7 +34,7 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret, int test_time
 
     // entry working thread
     for (i = 10; i < test_time_sec; ++ i) {
-        if (i % 10 == 0) {
+        if (i % 60 == 0) {
             LOGI(VD_TAG, "tick in %d seconds...", i);
         }
         rc_sleep(1000);

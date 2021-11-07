@@ -184,7 +184,6 @@ char* build_regist_json(rc_device_t* device, int now, const char* signature)
             JSON_OBJECT_ADD_STRING(root, clientId, device->client_id);
         }
         JSON_OBJECT_ADD_STRING(root, signature, signature)
-        JSON_OBJECT_ADD_STRING(root, deviceSecret, "xyz")
         JSON_OBJECT_ADD_STRING(root, time, now_str)
         if (device->hardware != NULL) {
             JSON_OBJECT_ADD_OBJECT(root, hardwareInfo)
@@ -326,7 +325,7 @@ int query_device_session_token(rc_device_t* device)
             return RC_ERROR_REGIST_DEVICE;
         }
         device->is_refreshing = 1;
-        LOGI(DM_TAG, "before calc_signature_use_secret");
+        //LOGI(DM_TAG, "before calc_signature_use_secret");
         calc_signature_use_secret(device, now, signature);
         rc_mutex_unlock(device->mobject);
 

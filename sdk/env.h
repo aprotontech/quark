@@ -28,6 +28,7 @@
 
 #define SDK_TAG "[QUARK]"
 #define NOTIFY_TIME_DIFF 60
+#define QUARK_API_URL "http://82.157.138.167:8080"
 
 typedef void* rc_mqtt_client;
 typedef void* protontech;
@@ -41,6 +42,8 @@ typedef struct _rc_local_config_t {
 
 } rc_local_config_t;
 
+typedef void* property_manager;
+
 typedef struct _rc_runtime_t {
     rc_local_config_t local;
     rc_settings_t settings;
@@ -50,16 +53,22 @@ typedef struct _rc_runtime_t {
     http_manager httpmgr;
     rc_timer_manager timermgr;
 
-    rc_session_change session_chanage;;
-    rc_time_callback time_update;
+    property_manager properties;
+
+    rc_session_change session_chanage;
+    rc_sync_time_callback time_update;
 
     // sync time with server
     rc_timer sync_timer;
 
     wifi_manager wifimgr;
 
+    rc_buf_t buff;
+
 } rc_runtime_t;
 
+
 rc_runtime_t* get_env_instance();
+
 
 #endif

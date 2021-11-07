@@ -22,7 +22,7 @@
 #else
 #define TIMER_HEAP_INIT_SIZE 1024
 #endif
-#define DEFAULT_WAIT_TIMEOUT 10000
+#define DEFAULT_WAIT_TIMEOUT 60000
 #define FIRST_TICK_INTERVAL 100
 
 extern int compare_timer(rc_timer_t* t1, rc_timer_t* t2);
@@ -55,7 +55,9 @@ void* timer_tick_thread(void* mgr)
     while (!manager->exit_thread) {
         ret = rc_event_wait(manager->event, timeout);
         if (manager->exit_thread) break;
+#if TIMER_BUFFER_LOGGER
         LOGI(TM_TAG, "timer-manager(%p) loop, ret=%d", manager, ret);
+#endif
         
         tc = NULL;
         rc_mutex_lock(manager->mobject);
@@ -67,10 +69,10 @@ void* timer_tick_thread(void* mgr)
                 tc->calling = 1;
 
                 if (tc->repeat > 0) {
-                    int usec = now.tv_usec + (tc->repeat % 1000) * 1000;
+                    int usec = now.tv_usec + (tc->repeat % 1000) * 1000; // 存在时钟漂移问题，因为使用了当前时间，理论上应该是用上一次的时间
                     tc->next_tick.tv_sec = now.tv_sec + (tc->repeat / 1000) + (usec / 1000000);
                     tc->next_tick.tv_usec = usec % 1000000;
-                    adjust_node(manager->heap, manager->heap_length, tc->idx);
+                    adjust_node(manager->heap, manager->heap_length, 0);
                 }
                 else {
                     tc->next_tick.tv_sec = TIMER_STOP_FLAG;
@@ -84,7 +86,9 @@ void* timer_tick_thread(void* mgr)
         rc_mutex_unlock(manager->mobject);
         
         if (tc != NULL && tc->callback != NULL) {
+#if TIMER_BUFFER_LOGGER
             LOGI(TM_TAG, "timer to call(%p)", tc->callback);
+#endif
             tc->callback(tc, tc->usr_data);
         }
 
@@ -100,19 +104,23 @@ void* timer_tick_thread(void* mgr)
             gettimeofday(&now, NULL);
             timeout = (manager->heap[0]->next_tick.tv_sec - now.tv_sec) * 1000 +
                 (manager->heap[0]->next_tick.tv_usec - now.tv_usec + 999) / 1000;
+#if TIMER_BUFFER_LOGGER
             LOGI(TM_TAG, "timer manager(%p) next tick(%d)ms", manager, timeout);
+#endif
             if (timeout < 0) {
                 timeout = 0;
-                LOGI(TM_TAG, "now=%d.%06d", (int)now.tv_sec, (int)now.tv_usec);
+                LOGI(TM_TAG, "timer[0](%p) is delayed, now=%d.%06d", manager->heap[0]->callback, (int)now.tv_sec, (int)now.tv_usec);
                 for (ret = 0; ret < manager->heap_length; ++ ret) {
                     tick = &manager->heap[ret]->next_tick;
-                    LOGI(TM_TAG, "timer[%d]=%d.%06d", ret, (int)tick->tv_sec, (int)tick->tv_usec);
+                    LOGI(TM_TAG, "timer[%d](%p)=%d.%06d", ret, manager->heap[ret]->callback, (int)tick->tv_sec, (int)tick->tv_usec);
                 }
             }
             else if (timeout > DEFAULT_WAIT_TIMEOUT) timeout = DEFAULT_WAIT_TIMEOUT;
         }
         else {
+#if TIMER_BUFFER_LOGGER
             LOGI(TM_TAG, "timer manager no timer");
+#endif
             timeout = DEFAULT_WAIT_TIMEOUT;
         }
         rc_mutex_unlock(manager->mobject);
@@ -138,10 +146,8 @@ rc_timer_manager rc_timer_manager_init()
     mgr->heap_total = TIMER_HEAP_INIT_SIZE;
     mgr->heap_length = 0;
     memset(mgr->heap, 0, sizeof(rc_timer_t*) * TIMER_HEAP_INIT_SIZE);
-#if defined(__QUARK_RTTHREAD__)
-    extern void set_next_rt_thread_stack_size(int size);
-    set_next_rt_thread_stack_size(4096);
-#endif
+    extern int set_next_thread_params(const char* thread_name, int stack_size, int thread_priority);
+    set_next_thread_params("timer", 4096, -1); // use default priority
     mgr->timer_thread = rc_thread_create(timer_tick_thread, mgr);
     LOGI(TM_TAG, "timer manager(%p) new", mgr);
     return mgr;
@@ -243,6 +249,8 @@ int rc_timer_ahead_once(rc_timer timer, int tick)
 
     rc_mutex_lock(manager->mobject);
     if (manager->heap[tm->idx] == tm) {
+        LOGI(TM_TAG, "ahead timer[%d](%p) once tick(%dms)", tm->idx, tm->callback, tick);
+
         gettimeofday(&tmp.next_tick, NULL);
         tmp.next_tick.tv_usec += (tick % 1000) * 1000;
         tmp.next_tick.tv_sec += (tick / 1000) + (tmp.next_tick.tv_usec / 1000000);
