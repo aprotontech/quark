@@ -20,11 +20,7 @@
 
 #define INTERVAL_COUNT (sizeof(_mqtt_reconnect_interval) / sizeof(short))
 
-#ifdef __QUARK_RTTHREAD__
-#define MQ_TIMER_INTERVAL 60
-#else
 #define MQ_TIMER_INTERVAL 5
-#endif
 
 short _mqtt_reconnect_interval[] = {
     5, 10, 10, 20, 30, 40, 60
@@ -35,66 +31,81 @@ void delivered(void *context, MQTTClient_deliveryToken dt);
 void connlost(void *context, char *cause);
 
 mqtt_client rc_mqtt_create(const char* host, int port, 
-        const char* app_id, const char* client_id, mqtt_session_token_callback callback)
+        const char* app_id, const char* client_id, const char* username, mqtt_session_token_callback callback)
 {
-    char addr[40] = {0};
+    char addr[100] = {0};
     rc_mqtt_client* mqtt = NULL;
-    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
 
     int ret = snprintf(addr, sizeof(addr), "tcp://%s:%d", host, port);
-
-    LOGI(MQ_TAG, "mqtt client host(%s), port(%d), app_ id(%s), client_id(%s)", 
-            host, port, app_id, client_id);
     if (ret <= 0 || ret >= sizeof(addr)) {
         LOGI(MQ_TAG, "input address(%s:%d) is too long", host, port);
         return NULL;
     }
+
+    LOGI(MQ_TAG, "mqtt client remote(%s), app_id(%s), client_id(%s), username(%s)", 
+            addr, app_id, client_id, username);
+    
     if (callback == NULL) {
         LOGI(MQ_TAG, "session callback is null");
         return NULL;
     }
 
+    if (app_id == NULL || client_id == NULL) {
+        LOGI(MQ_TAG, "input appId(%s), clientId(%s) is invalidate", app_id, client_id);
+        return NULL;
+    } 
+
     mqtt = (rc_mqtt_client*)rc_malloc(sizeof(rc_mqtt_client));
     memset(mqtt, 0, sizeof(rc_mqtt_client));
+    mqtt->buff = rc_buf_stack();
+    mqtt->buff.total = MQTT_CLIENT_PAD_SIZE;
+
     mqtt->mobject = rc_mutex_create(NULL);
 
-    mqtt->client_id = rc_copy_string(client_id);
+    // topic prefix buffer
+    mqtt->topic_prefix = RC_BUF_PTR(&mqtt->buff);
+    mqtt->buff.length = MQTT_TOPIC_PREFIX_LENGTH;
+
+    // append client id
+    mqtt->client_id = RC_BUF_PTR(&mqtt->buff);
+    rc_buf_append(&mqtt->buff, client_id, strlen(client_id) + 1);
+
+    if (username == NULL || username == client_id) {
+        mqtt->user_name = mqtt->client_id;
+    } else {
+        mqtt->user_name = RC_BUF_PTR(&mqtt->buff);
+        rc_buf_append(&mqtt->buff, username, strlen(username) + 1);
+    }
+
+    // passwd
+    mqtt->passwd = RC_BUF_PTR(&mqtt->buff);
+    mqtt->buff.length += MQTT_PASSWD_MAX_LENGTH;
+
+    if (RC_BUF_LEFT_SIZE(&mqtt->buff) <= 0) {
+        LOGI(MQ_TAG, "buffer size is out-of range");
+        rc_free(mqtt);
+        return NULL;
+    }
+    
     mqtt->get_session = callback;
     mqtt->on_connect = NULL;
-    snprintf(mqtt->topic_prefix, sizeof(mqtt->topic_prefix) - 1,
-            "/%s/%s", app_id, client_id);
 
     mqtt->force_re_sub = 0;
     mqtt->has_sub_failed = 0;
     mqtt->reconn_timer = NULL;
     mqtt->sub_map = hashmap_new();
 
-#ifdef __QUARK_RTTHREAD__
-    mqtt->conn_opts.clientID.cstring = mqtt->client_id;
-    mqtt->conn_opts.keepAliveInterval = 60;
-    mqtt->conn_opts.cleansession = 1;
-    mqtt->conn_opts.username.cstring = mqtt->client_id;
-    mqtt->conn_opts.password.cstring = "";
-    mqtt->conn_opts.willFlag = 0;
-    mqtt->conn_opts.MQTTVersion = 4;
-#elif defined(__QUARK_FREERTOS__)
-#elif defined(__QUARK_LINUX__)
-    mqtt->conn_opts = conn_opts;
-    mqtt->conn_opts.keepAliveInterval = 60;
-    mqtt->conn_opts.reliable = 0;
-    mqtt->conn_opts.connectTimeout = 3;
-    mqtt->conn_opts.retryInterval = 10;
-    mqtt->conn_opts.cleansession = 1;
-    mqtt->conn_opts.username = mqtt->client_id;
-    mqtt->conn_opts.password = "";
-
-#endif
-
-    MQTTClient_create(&mqtt->client, addr, mqtt->client_id,
+    mqtt->client = &mqtt->wrap;
+    ret = MQTTClient_create(&mqtt->client, addr, mqtt->client_id,
         MQTTCLIENT_PERSISTENCE_NONE, NULL);
+    if (ret != 0) {
+        LOGI(MQ_TAG, "create mqtt client failed with %d", ret);
+        rc_free(mqtt);
+        return NULL;
+    }
     MQTTClient_setCallbacks(mqtt->client, mqtt, connlost, msgarrvd, delivered);
     
-    LOGI(MQ_TAG, "mqtt(%p), topic-prefix(%s) created", mqtt, mqtt->topic_prefix);
+    LOGI(MQ_TAG, "mqtt(%p), client_id(%s) created", mqtt, mqtt->client_id);
 
     return mqtt;
 }
@@ -300,17 +311,36 @@ int mqtt_connect_to_remote(rc_mqtt_client* mqtt)
     
     LOGI(MQ_TAG, "mqtt(%p) connect clientId(%s), token(%s)", 
             mqtt, mqtt->client_id, passwd);
+    if (passwd == NULL || strlen(passwd) >= MQTT_PASSWD_MAX_LENGTH) {
+        LOGI(MQ_TAG, "input mqtt password is invalidate");
+        return -1;
+    }
 
-#ifdef __QUARK_RTTHREAD__
-    mqtt->conn_opts.password.cstring = passwd;
-    ret = MQTTClient_connect(mqtt->client, &mqtt->conn_opts);
-#elif defined(__QUARK_FREERTOS__)
-    ret = RC_ERROR_NOT_IMPLEMENT;
+    strcpy(mqtt->passwd, passwd);
+
+    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
+#if defined(__QUARK_RTTHREAD__) || defined(__QUARK_FREERTOS__)
+    conn_opts.keepAliveInterval = 60;
+    conn_opts.cleansession = 1;
+    conn_opts.willFlag = 0;
+    conn_opts.MQTTVersion = 3;
+    conn_opts.clientID.cstring = mqtt->client_id;
+    conn_opts.username.cstring = mqtt->user_name;
+    conn_opts.password.cstring = mqtt->passwd;
+    ret = MQTTClient_connect(mqtt->client, &conn_opts);
 #elif defined(__QUARK_LINUX__)
-    mqtt->conn_opts.password = passwd;
-    ret = MQTTClient_connect(mqtt->client, &mqtt->conn_opts);
-    mqtt->conn_opts.password = "";
+    conn_opts = conn_opts;
+    conn_opts.keepAliveInterval = 60;
+    conn_opts.reliable = 0;
+    conn_opts.connectTimeout = 3;
+    conn_opts.retryInterval = 10;
+    conn_opts.cleansession = 1;
+    conn_opts.clientID = mqtt->client_id;
+    conn_opts.username = mqtt->user_name;
+    conn_opts.password = mqtt->passwd;
+    ret = MQTTClient_connect(mqtt->client, &conn_opts);
 #endif
+
     LOGI(MQ_TAG, "mqtt(%p) connect, ret(%d)-%s", mqtt, ret, ret==0?"success":"failed");
 
     if (ret == MQTTCLIENT_SUCCESS) { // connect success    
@@ -323,9 +353,9 @@ int mqtt_connect_to_remote(rc_mqtt_client* mqtt)
     }
     
     mqtt->last_reconnect_time = (int)time(NULL);
-
     mqtt->connectResult = ret;
-#ifndef __QUARK_RTTHREAD__    
+
+#if defined(__QUARK_RTTHREAD__) || defined(__QUARK_FREERTOS__)
     if (mqtt->on_connect != NULL) {
         char error[40] = {0};
         snprintf(error, sizeof(error), "mqtt connect result: %d", ret);
@@ -383,7 +413,7 @@ int rc_mqtt_connect(mqtt_client client)
     return mqtt_connect_to_remote(mqtt);
 }
 
-int rc_mqtt_enable_auto_connect(mqtt_client client, rc_timer_manager mgr, mqtt_connect_callback callback)
+int rc_mqtt_enable_auto_connect(mqtt_client client, rc_timer_manager mgr, mqtt_connect_callback callback, int at_once)
 {
     int rc;
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
@@ -394,12 +424,15 @@ int rc_mqtt_enable_auto_connect(mqtt_client client, rc_timer_manager mgr, mqtt_c
 
     mqtt->on_connect = callback;
 #ifdef __QUARK_RTTHREAD__
-#elif defined(__QUARK_LINUX__)
+#elif defined(__QUARK_LINUX__) || defined(__QUARK_FREERTOS__)
     mqtt->cur_reconnect_interval_index = 0;
     mqtt->last_reconnect_time = 0;
     mqtt->reconn_timer = rc_timer_create(mgr, MQ_TIMER_INTERVAL * 1000, MQ_TIMER_INTERVAL * 1000, mqtt_on_timer, mqtt);
 #endif
     
+    if (at_once && mqtt->reconn_timer != NULL) {
+        rc_timer_ahead_once(mqtt->reconn_timer, 100);
+    }
     return RC_SUCCESS;
 }
 

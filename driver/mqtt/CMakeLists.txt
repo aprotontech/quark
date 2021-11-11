@@ -11,11 +11,14 @@ INCLUDE_DIRECTORIES(${SYSTEM_SOURCE_DIR}/include)
 INCLUDE_DIRECTORIES(${paho_SOURCE_DIR}/src)
 INCLUDE_DIRECTORIES(${JSON_SOURCE_DIR}/include)
 INCLUDE_DIRECTORIES(${RCUTILS_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES(${embeddedmqtt_SOURCE_DIR}/MQTTClient-C/src)
+INCLUDE_DIRECTORIES(${embeddedmqtt_SOURCE_DIR}/MQTTPacket/src)
 
 # 2.Add library,dependencies,link libraries
 ADD_OUTPUT_LIBRARY(mqtt_static STATIC ${LIB_SRC_LIST})
 
 ADD_MODULE_DEPENDENCIES(mqtt_static system_static logs_static json_static)
+#ADD_DEPENDENCIES(mqtt_static embeddedmqtt)
 
 ADD_TARGET_LINK_LIBRARIES(mqtt_static paho-mqtt3c system rcutils logs json)
 

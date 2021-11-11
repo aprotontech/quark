@@ -105,6 +105,9 @@ FUNCTION(INSTALL_OUTPUT arg)
     ENDIF()
 ENDFUNCTION()
 
+# mqtt
+ADD_DEFINITIONS(-DMQTT_TASK=1)
+ADD_DEFINITIONS(-DTENCENT_IOT=1)
 # Add all sub directory,it is one module
 ADD_SUBDIRECTORY(framework/json)
 ADD_SUBDIRECTORY(framework/md5)
@@ -113,11 +116,13 @@ ADD_SUBDIRECTORY(framework/logs)
 ADD_SUBDIRECTORY(framework/common)
 ADD_SUBDIRECTORY(framework/system)
 
+ADD_SUBDIRECTORY(third/paho.mqtt.embedded-c)
+
 ADD_SUBDIRECTORY(driver/wifi)
 ADD_SUBDIRECTORY(driver/http)
 ADD_SUBDIRECTORY(driver/device)
 ADD_SUBDIRECTORY(driver/ans)
-#ADD_SUBDIRECTORY(driver/mqtt)
+ADD_SUBDIRECTORY(driver/mqtt)
 
 ADD_SUBDIRECTORY(sdk)
 

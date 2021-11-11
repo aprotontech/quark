@@ -44,6 +44,11 @@ typedef enum _rc_property_type {
     RC_PROPERTY_BOOL_VALUE = 3,
 } rc_property_type;
 
+typedef enum _rc_iot_platform_type {
+    RC_IOT_QUARK = 0,
+    RC_IOT_TENCENT = 1,
+} rc_iot_platform_type;
+
 typedef void* rc_hardware_t;
 
 typedef struct _rc_settings_t {
@@ -71,7 +76,8 @@ typedef struct _rc_settings_t {
 
     char enable_ntp_time_sync;
     char new_thread_init;
-    char enable_keepalive; 
+    char enable_keepalive;
+    char iot_platform; // rc_iot_platform_type
     char max_device_retry_times;
     char auto_watch_wifi_status;
 

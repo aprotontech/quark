@@ -24,11 +24,13 @@
 #include "rc_json.h"
 #include "rc_error.h"
 #include "rc_timer.h"
+#include "rc_mqtt.h"
 #include "wifi.h"
 
 #define SDK_TAG "[QUARK]"
 #define NOTIFY_TIME_DIFF 60
 #define QUARK_API_URL "http://82.157.138.167:8080"
+
 
 typedef void* rc_mqtt_client;
 typedef void* protontech;
@@ -57,6 +59,11 @@ typedef struct _rc_runtime_t {
 
     rc_session_change session_chanage;
     rc_sync_time_callback time_update;
+
+    rc_kl_status_change kl_change;
+    rc_push_callback push_callback;
+    rc_instant_callback instant_callback;
+    rc_net_dispatch_mgr_t net_dispatch;
 
     // sync time with server
     rc_timer sync_timer;

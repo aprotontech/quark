@@ -33,7 +33,7 @@ char* get_buf_ptr(rc_buf_t* buf);
 rc_buf_t* rc_buf_init(int size);
 rc_buf_t rc_buf_usrdata(char* usrbuf, int len);
 rc_buf_t rc_buf_stack();
-rc_buf_t* rc_buf_append(rc_buf_t* buf, char* data, int len);
+rc_buf_t* rc_buf_append(rc_buf_t* buf, const char* data, int len);
 void rc_buf_free(rc_buf_t* buf);
 
 char* rc_copy_string(const char* input);

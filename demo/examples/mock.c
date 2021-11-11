@@ -19,6 +19,7 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret, int test_time
     settings.app_id = app_id;
     settings.app_secret = app_secret;
     settings.uuid = NULL;
+    settings.enable_keepalive = 0;
 
     // init sdk
     RC_EXCEPT_SUCCESS(rc_sdk_init("test", 1, &settings));

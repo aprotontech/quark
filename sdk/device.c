@@ -6,12 +6,24 @@
 
 #define DEVICE_SESSION_PATH "/api/devices"
 
+int mqtt_client_init(rc_runtime_t* env, const char* app_id, const char* client_id);
+
 void sdk_device_token_callback(aidevice dev, const char* token, int timeout)
 {
     rc_runtime_t* env = get_env_instance();
     if (env != NULL && env->device == dev) {
         if (env->session_chanage != NULL) {
             env->session_chanage(token, timeout);
+        }
+
+        // regist mqtt 
+        if (env->mqtt == NULL && env->settings.enable_keepalive) { // mqtt is not created
+            const char* app_id = get_device_app_id(env->device);
+            const char* client_id = get_device_client_id(env->device);
+            if (mqtt_client_init(env, app_id, client_id) != 0) {
+                LOGI(SDK_TAG, "create mqtt client failed");
+                return;
+            }
         }
     }
 }

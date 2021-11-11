@@ -96,7 +96,7 @@ rc_buf_t rc_buf_usrdata(char* usrbuf, int len)
     return buf;
 }
 
-rc_buf_t* rc_buf_append(rc_buf_t* buf, char* data, int len)
+rc_buf_t* rc_buf_append(rc_buf_t* buf, const char* data, int len)
 {
     if (buf == NULL || RC_BUF_LEFT_SIZE(buf) <= len) {
         return NULL;

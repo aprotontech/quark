@@ -148,7 +148,7 @@ int rc_thread_join(rc_thread th)
 #if defined(__QUARK_RTTHREAD__)
         rt_thread_delete(thread->pthread);
 #elif defined(__QUARK_FREERTOS__)
-
+        vTaskDelete(thread->handle);
 #elif defined(__QUARK_LINUX__)
         rc = pthread_join(thread->pthread, NULL);
 #endif

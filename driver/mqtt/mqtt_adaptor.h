@@ -22,16 +22,17 @@
 #include "rc_event.h"
 #include "rc_mutex.h"
 
-#ifdef __QUARK_RTTHREAD__
-#include "paho_mqtt.h"
-#elif defined(__QUARK_FREERTOS__)
-#elif defined(__QUARK_LINUX__)
+#include "esp32_mqtt_adaptor.h"
+#include "rt_thread_mqtt_adaptor.h"
+
+#if defined(__QUARK_LINUX__)
 #include "MQTTClient.h"
 #endif
 
-#ifndef MQTT_TOPIC_PREFIX_LENGTH
+#define MQTT_CLIENT_PAD_SIZE 512
+
 #define MQTT_TOPIC_PREFIX_LENGTH 60
-#endif
+#define MQTT_PASSWD_MAX_LENGTH 100
 
 #ifndef MQTT_TOPIC_RPC
 #define MQTT_TOPIC_RPC "rpc"
@@ -57,10 +58,6 @@
 #define MQTT_CMD_QOS 1
 #endif
 
-#ifndef MQTT_PUB_SUB_BUF_SIZE
-#define MQTT_PUB_SUB_BUF_SIZE 1024
-#endif
-
 #define MQTT_TOPIC_SEP '/'
 
 #define MQ_TAG "[MQTT]"
@@ -72,64 +69,21 @@ typedef struct _mqtt_subscribe_t {
     char topic[4];
 } mqtt_subscribe_t;
 
-#ifdef __QUARK_RTTHREAD__
-
-typedef MQTTClient* inner_mqtt_ptr;
-typedef int MQTTClient_deliveryToken;
-typedef MQTTMessage MQTTClient_message;
-typedef MQTTPacket_connectData MQTTClient_connectOptions;
-
-#elif defined(__QUARK_FREERTOS__)
-typedef struct _Empty_MQTTClient_connectOptions {
-
-} MQTTClient_connectOptions;
-
-typedef struct _Empty_MQTTClient_message {
-
-} MQTTClient_message;
-
-typedef void* inner_mqtt_ptr;
-typedef int MQTTClient_deliveryToken;
-
-#elif defined(__QUARK_LINUX__)
-#endif
-
-#if defined(__QUARK_FREERTOS__) || defined(__QUARK_RTTHREAD__)
-typedef void MQTTClient_connectionLost(void *context, char *cause);
-typedef int MQTTClient_messageArrived(void *context, char *topicName, int topicLen, MQTTClient_message *message);
-typedef void MQTTClient_deliveryComplete(void *context, MQTTClient_deliveryToken dt);
-
-int MQTTClient_create(void** handle, const char* serverURI, const char* clientId,
-		int persistence_type, void* persistence_context);
-int MQTTClient_connect(void* handle, MQTTClient_connectOptions* options);
-int MQTTClient_isConnected(void* handle);        
-int MQTTClient_disconnect(void* handle, int timeout);
-void MQTTClient_free(void* ptr);
-void MQTTClient_destroy(void** handle);
-void MQTTClient_freeMessage(MQTTClient_message** msg);
-int MQTTClient_subscribe(void* handle, const char* topic, int qos);
-int MQTTClient_publish(void* handle, const char* topicName, int payloadlen, void* payload, int qos, int retained,
-																 MQTTClient_deliveryToken* dt);
-int MQTTClient_setCallbacks(void* handle, void *context, MQTTClient_connectionLost *cl, 
-    MQTTClient_messageArrived *ma, MQTTClient_deliveryComplete *dc);
-#define MQTTClient_connectOptions_initializer {}
-#define MQTTCLIENT_SUCCESS 0
-#define MQTTCLIENT_PERSISTENCE_NONE 0
-
-#endif
-
-
 typedef struct _rc_mqtt_client_t {
+#if defined(__QUARK_FREERTOS__) || defined(__QUARK_RTTHREAD__)
+    quark_mqtt_client_wrap_t wrap;
+#endif
     void* client;
-    MQTTClient_connectOptions conn_opts;
 
     int connectResult;
 
     char* client_id;
+    char* user_name;
+    char* passwd;
+    char* topic_prefix;
+
     mqtt_session_token_callback get_session;
     mqtt_connect_callback on_connect;
-
-    char topic_prefix[MQTT_TOPIC_PREFIX_LENGTH];
 
     rc_mutex mobject;
 
@@ -141,6 +95,9 @@ typedef struct _rc_mqtt_client_t {
     short force_re_sub;
     short has_sub_failed;
     map_t sub_map;
+
+    rc_buf_t buff;
+    char pad[MQTT_CLIENT_PAD_SIZE];
 } rc_mqtt_client;
 
 #endif

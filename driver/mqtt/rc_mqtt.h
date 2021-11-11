@@ -32,10 +32,10 @@ typedef int (*mqtt_rpc_event_callback)(mqtt_client client, const char* message, 
 typedef const char* (*mqtt_session_token_callback)(const char* client_id);
 
 mqtt_client rc_mqtt_create(const char* host, int port, 
-        const char* app_id, const char* client_id, mqtt_session_token_callback callback);
+        const char* app_id, const char* client_id, const char* username, mqtt_session_token_callback callback);
 
 int rc_mqtt_connect(mqtt_client client);
-int rc_mqtt_enable_auto_connect(mqtt_client client, rc_timer_manager mgr, mqtt_connect_callback callback);
+int rc_mqtt_enable_auto_connect(mqtt_client client, rc_timer_manager mgr, mqtt_connect_callback callback, int at_once);
 
 int rc_mqtt_subscribe(mqtt_client client, const char* topic, mqtt_subscribe_callback callback);
 
