@@ -121,7 +121,7 @@ int append_hardware_info(rc_runtime_t* env)
     }
 
     // get mac address
-    char* mac_str = RC_BUF_PTR(&env->buff);
+    char* mac_str = rc_buf_tail_ptr(&env->buff);
 #if defined(__QUARK_FREERTOS__)
     {
         uint8_t mac[6] = {0};

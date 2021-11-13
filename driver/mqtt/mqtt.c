@@ -63,22 +63,22 @@ mqtt_client rc_mqtt_create(const char* host, int port,
     mqtt->mobject = rc_mutex_create(NULL);
 
     // topic prefix buffer
-    mqtt->topic_prefix = RC_BUF_PTR(&mqtt->buff);
+    mqtt->topic_prefix = rc_buf_tail_ptr(&mqtt->buff);
     mqtt->buff.length = MQTT_TOPIC_PREFIX_LENGTH;
 
     // append client id
-    mqtt->client_id = RC_BUF_PTR(&mqtt->buff);
+    mqtt->client_id = rc_buf_tail_ptr(&mqtt->buff);
     rc_buf_append(&mqtt->buff, client_id, strlen(client_id) + 1);
 
     if (username == NULL || username == client_id) {
         mqtt->user_name = mqtt->client_id;
     } else {
-        mqtt->user_name = RC_BUF_PTR(&mqtt->buff);
+        mqtt->user_name = rc_buf_tail_ptr(&mqtt->buff);
         rc_buf_append(&mqtt->buff, username, strlen(username) + 1);
     }
 
     // passwd
-    mqtt->passwd = RC_BUF_PTR(&mqtt->buff);
+    mqtt->passwd = rc_buf_tail_ptr(&mqtt->buff);
     mqtt->buff.length += MQTT_PASSWD_MAX_LENGTH;
 
     if (RC_BUF_LEFT_SIZE(&mqtt->buff) <= 0) {
@@ -148,8 +148,8 @@ int do_rpc_callback(rc_mqtt_client* mqtt, mqtt_rpc_event_callback callback,
         JSON_OBJECT_ADD_STRING(body, i, msgId);
         JSON_OBJECT_ADD_OBJECT(body, c)
             JSON_OBJECT_ADD_STRING(c, rc, str_rc);
-            if (ret == RC_SUCCESS && get_buf_ptr(&response) != NULL) {
-                JSON_OBJECT_ADD_STRING(c, body, get_buf_ptr(&response));
+            if (ret == RC_SUCCESS && rc_buf_head_ptr(&response) != NULL) {
+                JSON_OBJECT_ADD_STRING(c, body, rc_buf_head_ptr(&response));
             }
         END_JSON_OBJECT_ITEM(c)
         output = JSON_TO_STRING(body);
@@ -167,7 +167,7 @@ int do_rpc_callback(rc_mqtt_client* mqtt, mqtt_rpc_event_callback callback,
     }
     
     LOGI(MQ_TAG, "mqtt client rpc ack(%s), ret(%d), msgId(%s), rc(%s), content(%s)", 
-            acktopic, ret, msgId, str_rc, get_buf_ptr(&response));
+            acktopic, ret, msgId, str_rc, rc_buf_head_ptr(&response));
     rc_buf_free(&response);
     return RC_SUCCESS;
 }

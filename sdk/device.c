@@ -40,12 +40,12 @@ int device_regist(rc_runtime_t* env)
     }
     
     rc_buf_t* tmp = rc_buf_init(strlen(url) + strlen(DEVICE_SESSION_PATH) + 1);
-    strcpy(get_buf_ptr(tmp), url);
-    strcat(get_buf_ptr(tmp), DEVICE_SESSION_PATH);
+    strcpy(rc_buf_head_ptr(tmp), url);
+    strcat(rc_buf_head_ptr(tmp), DEVICE_SESSION_PATH);
 
     rc_settings_t* settings = &env->settings;
 
-    env->device = rc_device_init(env->httpmgr, get_buf_ptr(tmp), (rc_hardware_info*)settings->hardware);
+    env->device = rc_device_init(env->httpmgr, rc_buf_head_ptr(tmp), (rc_hardware_info*)settings->hardware);
     rc_buf_free(tmp);
     if (env->device == NULL) {
         LOGI(SDK_TAG, "sdk init failed, device manager init failed");

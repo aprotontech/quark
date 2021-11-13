@@ -48,16 +48,25 @@ char* rc_copy_string(const char* input)
     return NULL;
 }
 
-char* get_buf_ptr(rc_buf_t* buf)
+char* rc_buf_head_ptr(rc_buf_t* buf)
 {
     return buf == NULL ? NULL :
         (buf->usr_buf ? buf->usr_buf : buf->buf);
+}
+
+char* rc_buf_tail_ptr(rc_buf_t* buf)
+{
+    return buf == NULL ? NULL :
+        ((buf->usr_buf ? buf->usr_buf : buf->buf) + buf->length);
 }
 
 rc_buf_t* rc_buf_init(int size)
 {
     int total = size + sizeof(rc_buf_t) - 4;
     rc_buf_t* p = (rc_buf_t*)rc_malloc(total + 1);
+    if (p == NULL) {
+        return NULL;
+    }
     memset(p, 0, total + 1); // make sure eof is \0
 
     p->free = 1;
@@ -102,7 +111,7 @@ rc_buf_t* rc_buf_append(rc_buf_t* buf, const char* data, int len)
         return NULL;
     }
 
-    memcpy(get_buf_ptr(buf) + buf->length, data, len);
+    memcpy(rc_buf_head_ptr(buf) + buf->length, data, len);
     buf->length += len;
     return buf;
 }

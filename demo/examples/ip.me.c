@@ -23,7 +23,7 @@ int httpget_other_service_url()
     int rc = http_get(mgr, TEST_QUERY_URL, TEST_QUERY_IP, headers, sizeof(headers)/sizeof(const char*), 3 * 1000, &response);
     LOGI(VD_TAG, "query %s status code %d", TEST_QUERY_URL, rc);
     if (rc >= 200 && rc < 300) {
-        LOGI(VD_TAG, "My Public Ip: %s", get_buf_ptr(&response));
+        LOGI(VD_TAG, "My Public Ip: %s", rc_buf_head_ptr(&response));
     }
 
     rc_buf_free(&response);

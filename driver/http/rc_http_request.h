@@ -49,7 +49,7 @@ enum {
     HTTP_REQUEST_POST = 3,
 };
 
-typedef int (*http_body_callback)(http_request request, int status_code, char* body, int len);
+typedef int (*http_body_callback)(http_request request, int status_code, const char* body, int len);
 
 ///////////////// open api
 http_request http_request_init(http_manager mgr, const char* url, const char *ipaddr, int method);
@@ -63,6 +63,9 @@ int http_request_async_send(http_request request, const char* body, int len);
 void* http_request_get_data(http_request request);
 
 int http_request_get_response(http_request request, int* status_code, rc_buf_t* buf);
+
+// get raw response
+int http_request_get_raw_response(http_request request, int* status_code, list_link_t** body_head_buf);
 
 int http_request_uninit(http_request request);
 

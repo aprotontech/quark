@@ -65,7 +65,7 @@ int rc_rsa_encrypt(rsa_crypt rsa, const char* decrypted, int len, rc_buf_t* encr
     if (crypt == NULL || encrypted == NULL) return RC_ERROR_INVALIDATE_INPUT;
 
     tmp = rc_buf_init(RSA_size(crypt->rsa) + 1);
-    ret = RSA_public_encrypt(len, decrypted, get_buf_ptr(tmp), crypt->rsa, RSA_PKCS1_PADDING);
+    ret = RSA_public_encrypt(len, decrypted, rc_buf_head_ptr(tmp), crypt->rsa, RSA_PKCS1_PADDING);
     if (ret < 0) {
         LOGI(CR_TAG, "rsa encrypt(%s) failed", decrypted);
         rc_buf_free(tmp);
@@ -74,7 +74,7 @@ int rc_rsa_encrypt(rsa_crypt rsa, const char* decrypted, int len, rc_buf_t* encr
 
     buflen = BASE64_ENCODE_OUT_SIZE(ret);
     *encrypted = rc_buf_usrdata((char*)rc_malloc(buflen + 1), buflen + 1);
-    base64_encode_internal(get_buf_ptr(tmp), ret, get_buf_ptr(encrypted));
+    base64_encode_internal(rc_buf_head_ptr(tmp), ret, rc_buf_head_ptr(encrypted));
     rc_buf_free(tmp);
     encrypted->length = buflen;
 
@@ -90,7 +90,7 @@ int rc_rsa_decrypt(rsa_crypt rsa, const char* encrypted, int len, rc_buf_t* decr
     if (crypt == NULL || decrypted == NULL) return RC_ERROR_INVALIDATE_INPUT;
     tmp = rc_buf_init(buflen + 1);
 
-    ret = base64_decode_internal(encrypted, len, get_buf_ptr(tmp));
+    ret = base64_decode_internal(encrypted, len, rc_buf_head_ptr(tmp));
     if (ret != 0) {
         rc_buf_free(tmp);
         LOGI(CR_TAG, "base64 decode(%s) failed", encrypted);
@@ -101,7 +101,7 @@ int rc_rsa_decrypt(rsa_crypt rsa, const char* encrypted, int len, rc_buf_t* decr
     decrypted->length = 0;
     decrypted->free = 1;
     decrypted->usr_buf = (char*)rc_malloc(decrypted->total);
-    ret = RSA_public_decrypt(buflen - 1, get_buf_ptr(tmp), get_buf_ptr(decrypted), crypt->rsa, RSA_PKCS1_PADDING);
+    ret = RSA_public_decrypt(buflen - 1, rc_buf_head_ptr(tmp), rc_buf_head_ptr(decrypted), crypt->rsa, RSA_PKCS1_PADDING);
     rc_buf_free(tmp); // free tmp cache
     if (ret < 0) {
         LOGI(CR_TAG, "RSA_public_decrypt failed with ret=%d", ret);

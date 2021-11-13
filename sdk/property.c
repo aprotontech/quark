@@ -254,7 +254,7 @@ int on_property_timer(rc_timer timer, void* usr_data)
         int rc = rc_http_quark_post("device", "/api/device/attrs", str, 5000, &response);
         free(str);
         if (rc == 200) {
-            LOGI(PROPERTY_TAG, "property report success(%s)", get_buf_ptr(&response));
+            LOGI(PROPERTY_TAG, "property report success(%s)", rc_buf_head_ptr(&response));
             isreportsuccess = 1;
             mgr->findchangeditem = 0;
         }
@@ -468,8 +468,8 @@ int rc_property_get_values(const char* keys, ...)
     int post_rc = rc_http_quark_post("DEVICE", "/attrs/get", sendstr, 5000, &response);
     free(sendstr);
     if (post_rc == 200) {
-        LOGI(PROPERTY_TAG, "property  get report success(%s)", get_buf_ptr(&response));
-        cJSON* paramresult = cJSON_Parse(get_buf_ptr(&response));
+        LOGI(PROPERTY_TAG, "property  get report success(%s)", rc_buf_head_ptr(&response));
+        cJSON* paramresult = cJSON_Parse(rc_buf_head_ptr(&response));
         if (paramresult != NULL) {
             va_start(ap, keys);
 

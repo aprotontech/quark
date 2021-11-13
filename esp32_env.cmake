@@ -1,6 +1,6 @@
 #################### GET ALL INCLUDES #############################
 idf_build_get_property(all_incs INCLUDE_DIRECTORIES)
-set(all_deps freertos nvs_flash)
+set(all_deps freertos bt nvs_flash)
 set(watched_deps )
 list(LENGTH all_deps new_count)
 message(STATUS "count=${new_count}")

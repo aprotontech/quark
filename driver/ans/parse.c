@@ -58,11 +58,11 @@ int decrypt_ip_string(rcservice_mgr_t* service_mgr, const char* enip, char* outp
 
     if (decrypted.length <= 0 || decrypted.length > 15) {
         rc_buf_free(&decrypted);
-        LOGI(SC_TAG, "decrypt enip failed, result(%s) is not ip", get_buf_ptr(&decrypted));
+        LOGI(SC_TAG, "decrypt enip failed, result(%s) is not ip", rc_buf_head_ptr(&decrypted));
         return -1;
     }
 
-    memcpy(output, get_buf_ptr(&decrypted), decrypted.length);
+    memcpy(output, rc_buf_head_ptr(&decrypted), decrypted.length);
     output[decrypted.length] = '\0';
     rc_buf_free(&decrypted);
     return decrypted.length;

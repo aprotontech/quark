@@ -250,10 +250,10 @@ int mqtt_client_init(rc_runtime_t* env, const char* app_id, const char* client_i
         buff = rc_buf_init(128);
         rc_buf_append(buff, settings->app_id, strlen(settings->app_id));
         rc_buf_append(buff, settings->client_id, strlen(settings->client_id) + 1);
-        client_id = get_buf_ptr(buff);
-        username = RC_BUF_PTR(buff);
+        client_id = rc_buf_head_ptr(buff);
+        username = rc_buf_tail_ptr(buff);
 
-        snprintf(RC_BUF_PTR(buff), RC_BUF_LEFT_SIZE(buff), "%s%s;%s;%06d;%ld", settings->app_id, client_id, "12010126",
+        snprintf(rc_buf_tail_ptr(buff), RC_BUF_LEFT_SIZE(buff), "%s%s;%s;%06d;%ld", settings->app_id, client_id, "12010126",
                  rand(), time(NULL) + 600);
     }
 

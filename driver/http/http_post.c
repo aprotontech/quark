@@ -46,7 +46,7 @@ int http_post(http_manager mgr, const char* url, const char *ipaddr, const char*
     for (i = 0; i < head_count; ++ i) {
         if (headers[i] != NULL) {
             rc_buf_t* head = rc_buf_init(strlen(headers[i]));
-            strcpy(get_buf_ptr(head), headers[i]);
+            strcpy(rc_buf_head_ptr(head), headers[i]);
             http_request_set_opt(request, HTTP_REQUEST_OPT_HEADER, head);
         }
     }
@@ -62,7 +62,7 @@ int http_post(http_manager mgr, const char* url, const char *ipaddr, const char*
         memcpy(p, response->usr_buf, response->length);
         response->usr_buf = p;
         response->free = 1;
-        RC_BUF_PTR(response)[0] = '\0'; // is just for debuger print
+        rc_buf_tail_ptr(response)[0] = '\0'; // is just for debuger print
     }
 
     http_request_uninit(request);

@@ -212,7 +212,7 @@ int http_request_set_opt(http_request req, int type, void* opt)
     case HTTP_REQUEST_OPT_HEADER:
         if (opt != NULL) {
             LL_insert(&((rc_buf_t*)opt)->link, request->headers.prev);
-            if (str_prefix_case_compare("User-Agent:", get_buf_ptr((rc_buf_t*)opt)) == 0) {
+            if (str_prefix_case_compare("User-Agent:", rc_buf_head_ptr((rc_buf_t*)opt)) == 0) {
                 request->custom_user_agent_header = 1;
             }
         }
@@ -255,7 +255,9 @@ int http_request_on_recv(http_request _request, char* buf, size_t len)
 {
     size_t r = 0;
     rc_http_request_t* request = (rc_http_request_t*)_request;
-    LOGI(RC_TAG, "response: %s", buf);
+    if (isprint(buf[0])) { // skip un-print body
+        LOGI(RC_TAG, "response: %s", buf);
+    }
     
     r = http_parser_execute(&request->parser, &request->settings, buf, len);
 
@@ -288,9 +290,9 @@ int http_request_conn_send_header(rc_http_request_t* request)
         return -1;
     }
 
-    LOGI(RC_TAG, "header: %s", get_buf_ptr(request->buf));
+    LOGI(RC_TAG, "header: %s", rc_buf_head_ptr(request->buf));
     
-    if (http_client_send(request->client, get_buf_ptr(request->buf), request->buf->length, &request->timeout) != 0) {
+    if (http_client_send(request->client, rc_buf_head_ptr(request->buf), request->buf->length, &request->timeout) != 0) {
         LOGI(RC_TAG, "send headers to http client failed");
         return -1;
     }
@@ -304,9 +306,9 @@ int http_request_recv_response(rc_http_request_t* request)
     int len;
     do {
         RC_BUF_CLEAN(request->buf);
-        memset(get_buf_ptr(request->buf), 0, RC_BUF_LEFT_SIZE(request->buf));
+        memset(rc_buf_head_ptr(request->buf), 0, RC_BUF_LEFT_SIZE(request->buf));
         len = http_client_recv(request->client, 
-                get_buf_ptr(request->buf), RC_BUF_LEFT_SIZE(request->buf), &request->timeout);
+                rc_buf_head_ptr(request->buf), RC_BUF_LEFT_SIZE(request->buf), &request->timeout);
         if (len <= 0) { // recv eof or timeout
             LOGI(RC_TAG, "request(%p) recv eof or timeout, ret(%d)", request, len);
             return RC_ERROR_HTTP_RECV;
@@ -315,9 +317,9 @@ int http_request_recv_response(rc_http_request_t* request)
         if (RC_BUF_LEFT_SIZE(request->buf) > 0) {
             // this is just for debuger printer, real response is not need ending with '\0'
             // the if sentence can be removed
-            get_buf_ptr(request->buf)[len] = '\0';
+            rc_buf_head_ptr(request->buf)[len] = '\0';
         }
-        if (http_request_on_recv(request, get_buf_ptr(request->buf), len) != 0) {
+        if (http_request_on_recv(request, rc_buf_head_ptr(request->buf), len) != 0) {
             return RC_ERROR_HTTP_RECV;
         }
         
@@ -331,7 +333,7 @@ int http_request_body_callback(rc_http_request_t* request)
     if (request->callback != NULL && request->stype == HTTP_RESPONSE_TYPE_NORMAL) {
         rc_buf_t buf = rc_buf_stack();
         http_request_get_response(request, NULL, &buf);
-        request->callback(request, request->status_code, get_buf_ptr(&buf), buf.length);
+        request->callback(request, request->status_code, rc_buf_head_ptr(&buf), buf.length);
         rc_buf_free(&buf);
     }
     return RC_SUCCESS;
@@ -360,7 +362,7 @@ int http_request_execute(http_request req)
     while (p != &request->body) {
         buf = (rc_buf_t*)p;
         LOGI(RC_TAG, "http(%p) send body-length(%d)", request, buf->length);
-        if (http_client_send(request->client, get_buf_ptr(buf), buf->length, &request->timeout) != 0) {
+        if (http_client_send(request->client, rc_buf_head_ptr(buf), buf->length, &request->timeout) != 0) {
             LOGW(RC_TAG, "send body to http client failed");
             return -1;
         }
@@ -509,6 +511,16 @@ int http_request_uninit(http_request _request)
         rc_event_uninit(request->thread->send_event);
     }
 
+    // release resbody
+    p = &request->res_body;
+    while (p != &request->res_body) {
+        rc_buf_t* buf = (rc_buf_t*)p;
+        p = p->next;
+        rc_buf_free(buf);
+    }
+
+    LL_init(&request->res_body);
+
     rc_free(request);
     LOGI(RC_TAG, "free http request(%p)", request);
     return 0;
@@ -577,9 +589,17 @@ int on_body_cb(http_parser *p, const char *at, size_t len)
         if (len > 0) {
             request->total_res_size += len;
             rc_buf_t* buf = rc_buf_init(len);
-            LL_insert(&buf->link, request->res_body.prev);
-            memcpy(get_buf_ptr(buf), at, len);
-            buf->length = len;
+            if (buf != NULL) {
+                LOGW(RC_TAG, "request(%p) malloc buffer failed", request);
+            } else {
+                LL_insert(&buf->link, request->res_body.prev);
+                memcpy(rc_buf_head_ptr(buf), at, len);
+                buf->length = len;
+            }
+        }
+    } else if (request->stype == HTTP_RESPONSE_TYPE_CHUNK) { // got chunk body
+        if (request->callback != NULL) {
+            request->callback(request, request->status_code, (char*)at, len);
         }
     }
 
@@ -610,7 +630,7 @@ int init_http_parser(rc_http_request_t* request)
 
 int http_request_build_header(rc_http_request_t* request)
 {
-    char* buf = get_buf_ptr(request->buf);
+    char* buf = rc_buf_head_ptr(request->buf);
     size_t len = request->buf->total - request->buf->length;
     int r = 0;
     list_link_t* p = NULL;
@@ -626,7 +646,7 @@ int http_request_build_header(rc_http_request_t* request)
     p = request->headers.next;
     while (p != &request->headers) {
         rbuf = (rc_buf_t*)p;
-        HTTP_WRITE_BUF("%s\r\n", get_buf_ptr(rbuf));
+        HTTP_WRITE_BUF("%s\r\n", rc_buf_head_ptr(rbuf));
         p = p->next;
     }
 
@@ -648,8 +668,22 @@ int http_request_build_header(rc_http_request_t* request)
     }
     HTTP_WRITE_BUF("\r\n");
 
-    request->buf->length += buf - get_buf_ptr(request->buf);
+    request->buf->length += buf - rc_buf_head_ptr(request->buf);
     
+    return 0;
+}
+
+int http_request_get_raw_response(http_request _request, int* status_code, list_link_t** body_head_buf)
+{
+    rc_http_request_t* request = (rc_http_request_t*)_request;
+    if (status_code != NULL) {
+        *status_code = request->status_code;
+    }
+
+    if (body_head_buf != NULL) {
+        *body_head_buf = &request->res_body;
+    }
+
     return 0;
 }
 
@@ -671,7 +705,7 @@ int http_request_get_response(http_request _request, int* status_code, rc_buf_t*
             obuf->total = buf->total;
             obuf->length = buf->length;
             obuf->free = 0;
-            obuf->usr_buf = get_buf_ptr(buf);
+            obuf->usr_buf = rc_buf_head_ptr(buf);
         }
         else { // response is too long, has more than two buffer
             int total = 0;
@@ -687,12 +721,17 @@ int http_request_get_response(http_request _request, int* status_code, rc_buf_t*
             obuf->free = 1;
             obuf->usr_buf = rc_malloc(obuf->total);
             LOGI("[REQUEST]", "total memory(%d)", total);
+            if (obuf->usr_buf == NULL) {
+                LOGW("[REQUEST]", "alloc output buffer failed");
+                *obuf = rc_buf_stack();
+                return -1;
+            }
             
             char* ptr = obuf->usr_buf;
             p = request->res_body.next;
             while (p != &request->res_body) {
                 rc_buf_t* rbuf = (rc_buf_t*)p;
-                memcpy(ptr, get_buf_ptr(rbuf), rbuf->length);
+                memcpy(ptr, rc_buf_head_ptr(rbuf), rbuf->length);
                 LOGI("[REQUEST]", "copy memory(%d)", rbuf->length);
 
                 ptr += rbuf->length;
@@ -704,7 +743,7 @@ int http_request_get_response(http_request _request, int* status_code, rc_buf_t*
     if (RC_BUF_LEFT_SIZE(obuf) > 0) {
         // this is just for debuger printer, real response is not need ending with '\0'
         // the if sentence can be removed
-        RC_BUF_PTR(obuf)[0] = '\0';
+        rc_buf_tail_ptr(obuf)[0] = '\0';
     }
     return 0;
 }

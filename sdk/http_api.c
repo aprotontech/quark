@@ -45,7 +45,7 @@ int rc_http_quark_post(const char* service_name, const char* path, const char* b
     LOGI("SDK_TAG", "http request body(%s)", body);
     rc = http_post(env->httpmgr, url, NULL, p, 1, body, strlen(body), timeout, response);
     if (rc == 200) {
-        if (need_refresh_token(get_buf_ptr(response))) {
+        if (need_refresh_token(rc_buf_head_ptr(response))) {
             rc_device_refresh_atonce(env->device, 1);
         }
     }
@@ -79,7 +79,7 @@ http_request rc_http_quark_request(const char* service_name, const char* path, i
     }
 
     head_buf = rc_buf_init(60);
-    snprintf(get_buf_ptr(head_buf), head_buf->total, "IOT-DEVICE-SESSION: %s", 
+    snprintf(rc_buf_head_ptr(head_buf), head_buf->total, "IOT-DEVICE-SESSION: %s", 
             get_device_session_token(env->device));
 
     http_request_set_opt(request, HTTP_REQUEST_OPT_TIMEOUT, &timeout);

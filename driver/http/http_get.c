@@ -24,7 +24,7 @@ int http_get(http_manager mgr, const char* url, const char *ipaddr,
     for (i = 0; i < head_count; ++ i) {
         if (headers[i] != NULL) {
             rc_buf_t* head = rc_buf_init(strlen(headers[i]));
-            strcpy(get_buf_ptr(head), headers[i]);
+            strcpy(rc_buf_head_ptr(head), headers[i]);
             http_request_set_opt(request, HTTP_REQUEST_OPT_HEADER, head);
         }
     }
@@ -34,15 +34,15 @@ int http_get(http_manager mgr, const char* url, const char *ipaddr,
         return RC_ERROR_EXECUTE_REQUEST_FAILED;
     }
 
-    http_request_get_response(request, &rc, response);
-    if (!response->free && response->length) {
+    rc = http_request_get_response(request, &rc, response);
+    if (rc == 0 && !response->free && response->length) {
         char* p = (char*)rc_malloc(response->length + 1);
         memcpy(p, response->usr_buf, response->length);
         response->usr_buf = p;
         response->free = 1;
-        RC_BUF_PTR(response)[0] = '\0'; // is just for debuger print
+        rc_buf_tail_ptr(response)[0] = '\0'; // is just for debuger print
     }
-
+    
     http_request_uninit(request);
     return rc;
 }

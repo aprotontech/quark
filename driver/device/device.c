@@ -215,11 +215,11 @@ int regist_device(rc_device_t* device, int now, const char* signature)
     LOGI(DM_TAG, "json request: %s", json_req);
 
     http_post(device->manager, device->url, NULL, NULL, 0, json_req, strlen(json_req), 3000, &response);
-    LOGI(DM_TAG, "json rsponse: %s", get_buf_ptr(&response));
+    LOGI(DM_TAG, "json rsponse: %s", rc_buf_head_ptr(&response));
 
     rc_mutex_lock(device->mobject);
     LOGI(DM_TAG, "before fill_device_info");
-    rc = fill_device_info(get_buf_ptr(&response), device);
+    rc = fill_device_info(rc_buf_head_ptr(&response), device);
     device->is_refreshing = 0;
     rc_mutex_unlock(device->mobject);
 
@@ -278,9 +278,9 @@ int calc_signature_use_publickey(rc_device_t* device, int now, char* signature)
         LOGI(DM_TAG, "md5(X+time)=%s", tmp)
 
         ret = rc_rsa_encrypt(rsa, tmp, 32, &encrypt);
-        LOGI(DM_TAG, "%s", get_buf_ptr(&encrypt));
+        LOGI(DM_TAG, "%s", rc_buf_head_ptr(&encrypt));
         if (ret == 0) {
-            memcpy(signature, get_buf_ptr(&encrypt), encrypt.length);
+            memcpy(signature, rc_buf_head_ptr(&encrypt), encrypt.length);
         }
 
         rc_rsa_crypt_uninit(rsa);

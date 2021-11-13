@@ -66,7 +66,7 @@ char* safe_copy_string_to_buffer(rc_buf_t* buf, char* s)
         return NULL;
     }
 
-    return RC_BUF_PTR(buf);
+    return rc_buf_tail_ptr(buf);
 }
 
 ans_service rc_service_init(rc_ans_config_t* config, http_manager hmgr)
@@ -142,13 +142,13 @@ int rc_service_reload_config(ans_service ans)
     rc = http_post(mgr->httpmgr, mgr->config.url, NULL, headers, headers[0] != NULL ? 1 : 0,
             mgr->json, mgr->json_len, 3000, &response);
     LOGI(SC_TAG, "url(%s), request(%s), status(%d), response(%s)",
-            mgr->config.url, mgr->json, rc, rc == 200 ? get_buf_ptr(&response) : "");
+            mgr->config.url, mgr->json, rc, rc == 200 ? rc_buf_head_ptr(&response) : "");
 
     if (rc != 200) {
         return RC_ERROR_SVRMGR_RELOAD;
     }
 
-    rc = service_set_config(ans, get_buf_ptr(&response), 0);
+    rc = service_set_config(ans, rc_buf_head_ptr(&response), 0);
     rc_buf_free(&response);
 
     return rc;
