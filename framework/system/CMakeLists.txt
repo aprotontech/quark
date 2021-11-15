@@ -6,6 +6,7 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/include)
 
 # 1.Add include of libraries
 INCLUDE_DIRECTORIES(${LOGS_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES(${RCUTILS_SOURCE_DIR}/include)
 
 # 2.Add library,dependencies,link libraries
 ADD_OUTPUT_LIBRARY(system_static STATIC ${LIB_SRC_LIST})
@@ -17,9 +18,6 @@ ADD_TARGET_LINK_LIBRARIES(system_static logs)
 # 3.Set properties
 SET_MODULE_PROPERTIES(system_static PROPERTIES OUTPUT_NAME "system")
 
-# 4.Install executable,libraries,include,doc,demo source code etc.
-#INSTALL(TARGETS http_static DESTINATION ${INSTALL_DIR}/lib/static)
-#INSTALL(DIRECTORY include DESTINATION ${INSTALL_DIR})
 
 # 5.Create module install target
 ADD_MODULE_INSTALL(system_install logs_install)

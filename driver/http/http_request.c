@@ -151,6 +151,7 @@ http_request http_request_init(http_manager mgr, const char* raw_url, const char
 
     request->buf_size = RC_HTTP_RECV_INIT_BUF_SIZE - sizeof(rc_buf_t); //default buf size
     request->manager = mgr;
+    request->stype = HTTP_RESPONSE_TYPE_NORMAL;
     request->client = http_manager_get_client(mgr, request->host, ipaddr, port);
     if (request->client == NULL) {
         rc_free(request);
@@ -351,7 +352,7 @@ int http_request_execute(http_request req)
     }
 
     request->rtype = HTTP_REQUEST_TYPE_NORMAL;
-    request->stype = HTTP_RESPONSE_TYPE_NORMAL;
+    //request->stype = HTTP_RESPONSE_TYPE_NORMAL;
 
     rc = http_request_conn_send_header(request);
     if (rc != 0) {
@@ -589,8 +590,8 @@ int on_body_cb(http_parser *p, const char *at, size_t len)
         if (len > 0) {
             request->total_res_size += len;
             rc_buf_t* buf = rc_buf_init(len);
-            if (buf != NULL) {
-                LOGW(RC_TAG, "request(%p) malloc buffer failed", request);
+            if (buf == NULL) {
+                LOGW(RC_TAG, "request(%p) malloc buffer(%d) failed", request, len);
             } else {
                 LL_insert(&buf->link, request->res_body.prev);
                 memcpy(rc_buf_head_ptr(buf), at, len);
