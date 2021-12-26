@@ -3,7 +3,6 @@
 #ifndef _QUARK_SYSTEM_H_
 #define _QUARK_SYSTEM_H_
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,17 +21,19 @@
 #endif
 
 #ifdef __QUARK_LINUX__
-#include <pthread.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <sys/socket.h>
+
 #endif
 
 #ifdef __QUARK_FREERTOS__
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "freertos/event_groups.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
+
 #endif
 
 #ifndef RC_ERROR_INVALIDATE_INPUT

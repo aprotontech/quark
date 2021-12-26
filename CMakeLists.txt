@@ -127,3 +127,8 @@ ADD_SUBDIRECTORY(driver/mqtt)
 ADD_SUBDIRECTORY(sdk)
 
 ADD_SUBDIRECTORY(demo/examples)
+
+
+IF(LINUX_DEMO)
+ADD_SUBDIRECTORY(demo/linux_test)
+ENDIF()
