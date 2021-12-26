@@ -134,13 +134,12 @@ int rc_downloader_start(rc_downloader dwner, int new_thread) {
         return RC_ERROR_INVALIDATE_INPUT;
     }
     if (new_thread) {
-#if defined(__QUARK_FREERTOS__) || defined(__QUARK_RTTHREAD__)
-        extern int set_next_thread_params(const char* thread_name,
-                                          int stack_size, int thread_priority);
-        set_next_thread_params("downloader", 2048, -1);
-#endif
+        rc_thread_context_t ctx = {.joinable = 0,
+                                   .name = "downloader",
+                                   .priority = -1,
+                                   .stack_size = 2048};
         downloader->thread =
-            rc_thread_create(downloader_download_thread, downloader);
+            rc_thread_create(downloader_download_thread, downloader, &ctx);
         if (downloader->thread == NULL) {
             LOGI(SDK_TAG, "downloader(%p) create thread failed", downloader);
             return RC_ERROR_DOWNLOAD_FAILED;

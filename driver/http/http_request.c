@@ -436,8 +436,13 @@ int http_request_async_execute(http_request req, http_body_callback callback,
     request->thread->mobject = rc_mutex_create(NULL);
     request->thread->send_event = rc_event_init();
 
+    rc_thread_context_t ctx = {.joinable = 1,
+                               .name = "http-executor",
+                               .priority = -1,
+                               .stack_size = 4096};
+
     request->thread->reqthread =
-        rc_thread_create(async_request_thread_func, request);
+        rc_thread_create(async_request_thread_func, request, &ctx);
 
     return RC_SUCCESS;
 }

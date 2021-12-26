@@ -10,7 +10,7 @@ typedef void* rc_thread;
 
 typedef void* (*rc_thread_function)(void* arg);
 
-rc_thread rc_thread_create(rc_thread_function func, void* arg);
+rc_thread rc_thread_create(rc_thread_function func, void* arg, void* ctx);
 
 int rc_thread_join(rc_thread thread);
 

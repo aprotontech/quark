@@ -20,7 +20,14 @@ typedef void* rc_thread;
 
 typedef void* (*rc_thread_function)(void* arg);
 
-rc_thread rc_thread_create(rc_thread_function func, void* arg);
+typedef struct _rc_thread_context_t {
+    short priority;
+    short stack_size;
+    char joinable;
+    const char* name;
+} rc_thread_context_t;
+
+rc_thread rc_thread_create(rc_thread_function func, void* arg, void* ctx);
 
 int rc_thread_join(rc_thread thread);
 

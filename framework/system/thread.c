@@ -16,6 +16,8 @@
 #include <stdlib.h>
 
 #include "logs.h"
+#include "rc_event.h"
+#include "rc_mutex.h"
 #include "rc_system.h"
 #include "rc_thread.h"
 
@@ -23,6 +25,7 @@
 #define RC_DEFAULT_THREAD_NAME "quark"
 
 typedef struct _rc_thread_t {
+    rc_event* join_event;
 #if defined(__QUARK_RTTHREAD__)
     rt_thread_t pthread;
     rc_thread_function func;
@@ -63,58 +66,45 @@ static void freertos_thread_adaptor(void* args) {
 
         vTaskDelete(p->handle);
         p->handle = NULL;
-        free(p);
-    }
-}
-
-#endif
-
-#if defined(__QUARK_FREERTOS__) || defined(__QUARK_RTTHREAD__)
-
-int _thread_stack_size = RC_DEFAULT_THREAD_STACK_SIZE;
-int _thread_priority = RC_DEFAULT_THREAD_PRIORITY;
-const char* _thread_name = RC_DEFAULT_THREAD_NAME;
-
-int set_next_thread_params(const char* thread_name, int stack_size,
-                           int thread_priority) {
-    if (thread_name != NULL) {
-        if (strlen(thread_name) >= RC_THREAD_NAME_MAX_LENGTH) {
-            LOGE("TREAD", "invalidate thread name(%s), length is too long",
-                 thread_name);
-            thread_name = RC_DEFAULT_THREAD_NAME;
-            return RC_ERROR_INVALIDATE_INPUT;
+        if (p->join_event == NULL) {
+            free(p);
+        } else {  // notify thread stoped
+            rc_event_signal(p->join_event);
         }
-    } else {
-        thread_name = RC_DEFAULT_THREAD_NAME;
     }
-
-    if (stack_size <= 0) {
-        stack_size = RC_DEFAULT_THREAD_STACK_SIZE;
-    }
-
-    if (thread_priority < 0) {
-        _thread_priority = RC_DEFAULT_THREAD_PRIORITY;
-    }
-
-    _thread_stack_size = stack_size;
-    _thread_priority = thread_priority;
-    _thread_name = thread_name;
-    return 0;
 }
 
 #endif
 
-rc_thread rc_thread_create(rc_thread_function func, void* arg) {
+rc_thread rc_thread_create(rc_thread_function func, void* arg, void* ctx) {
     rc_thread_t* thread = (rc_thread_t*)malloc(sizeof(rc_thread_t));
     memset(thread, 0, sizeof(rc_thread_t));
-    strcpy(thread->name, _thread_name);
+    rc_thread_context_t* thread_ctx = (rc_thread_context_t*)ctx;
+    if (thread_ctx != NULL && thread_ctx->name != NULL) {
+        if (strlen(thread_ctx->name) >= RC_THREAD_NAME_MAX_LENGTH) {
+            LOGW("TREAD", "invalidate thread name(%s), length is too long",
+                 thread_ctx->name);
+        }
+        strncpy(thread->name, thread_ctx->name, sizeof(thread->name) - 1);
+    } else {
+        strcpy(thread->name, RC_DEFAULT_THREAD_NAME);
+    }
+
+    int thread_stack_size = RC_DEFAULT_THREAD_STACK_SIZE;
+    if (thread_ctx != NULL && thread_ctx->stack_size > 0) {
+        thread_stack_size = thread_ctx->stack_size;
+    }
+
+    int thread_priority = RC_DEFAULT_THREAD_PRIORITY;
+    if (thread_ctx != NULL && thread_ctx->priority > 0) {
+        thread_priority = thread_ctx->priority;
+    }
 
 #if defined(__QUARK_RTTHREAD__)
 
     thread->pthread =
         rt_thread_create(thread->name, rtos_thread_adatpor, (void*)thread,
-                         _thread_stack_size, RT_THREAD_PROIORITY, 8);
-    _thread_stack_size = RT_THREAD_STACK_SIZE;
+                         thread_stack_size, thread_priority, 8);
     if (thread->pthread == RT_NULL) {
         LOGE("THREAD", "***************create new thread failed************");
         free(thread);
@@ -127,15 +117,29 @@ rc_thread rc_thread_create(rc_thread_function func, void* arg) {
 #elif defined(__QUARK_FREERTOS__)
     thread->func = func;
     thread->arg = arg;
+
+    if (thread_ctx != NULL && thread_ctx->joinable) {
+        thread->join_event = rc_event_init();
+        if (thread->join_event == NULL) {
+            LOGE("THREAD", "create thread join event failed");
+            free(thread);
+            return NULL;
+        }
+    }
+
     BaseType_t btt =
-        xTaskCreate(freertos_thread_adaptor, thread->name, _thread_stack_size,
-                    thread, _thread_priority, &thread->handle);
+        xTaskCreate(freertos_thread_adaptor, thread->name, thread_stack_size,
+                    thread, thread_priority, &thread->handle);
     if (btt != pdPASS) {
         LOGE("THREAD", "***************create new thread failed************");
+        if (thread->join_event != NULL) {
+            rc_event_uninit(thread->join_event);
+        }
         free(thread);
         return NULL;
     }
-    LOGI("WIFI", "create freertos task success")
+
+    LOGI("THREAD", "create freertos task success")
 #elif defined(__QUARK_LINUX__)
     pthread_create(&thread->pthread, NULL, func, arg);
 #endif
@@ -150,9 +154,10 @@ int rc_thread_join(rc_thread th) {
 #if defined(__QUARK_RTTHREAD__)
         rt_thread_delete(thread->pthread);
 #elif defined(__QUARK_FREERTOS__)
-        if (thread->handle) {
-            vTaskDelete(thread->handle);
-            thread->handle = NULL;
+        if (thread->join_event != NULL) {
+            if (rc_event_wait(thread->join_event, INT_MAX) == 0) {  // got event
+                rc_event_uninit(thread->join_event);
+            }
         }
 #elif defined(__QUARK_LINUX__)
         rc = pthread_join(thread->pthread, NULL);
