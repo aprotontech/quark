@@ -27,6 +27,10 @@ int rc_buf_queue_clean(rc_buf_queue queue);
 
 int rc_buf_queue_is_empty(rc_buf_queue queue);
 
+int rc_buf_queue_is_full(rc_buf_queue queue);
+
+int rc_buf_queue_get_size(rc_buf_queue queue);
+
 int rc_buf_queue_uninit(rc_buf_queue queue);
 
 #endif

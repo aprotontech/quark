@@ -118,4 +118,24 @@ int rc_clear_interval(rc_timer timer);
 int rc_http_quark_post(const char* service_name, const char* path, const char* body, int timeout, rc_buf_t* response);
 
 
+///////////////////////
+// Downloader
+
+typedef void* rc_downloader;
+typedef int (*on_download_callback)(rc_downloader downloader, const char* data, int len);
+
+typedef enum _rc_download_type_t {
+    DOWNLOAD_TO_CALLBACK,
+    DOWNLOAD_TO_BUF_QUEUE,
+    DOWNLOAD_TO_FILE,
+} rc_download_type_t ;
+
+rc_downloader rc_downloader_init(const char* url, const char* headers[], int header_count, int timeout_ms, rc_download_type_t type, void* data);
+
+int rc_downloader_start(rc_downloader downloader, int new_thread);
+
+int rc_downloader_get_status(rc_downloader downloader, int* total, int* current);
+
+int rc_downloader_uninit(rc_downloader downloader);
+
 #endif

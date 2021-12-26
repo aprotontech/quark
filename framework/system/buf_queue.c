@@ -24,7 +24,9 @@ typedef struct _rc_buf_queue_t {
     rc_event push_event;
     rc_event pop_event;
     int skip_header_bytes;
-    int total_bytes;
+    volatile int total_bytes;
+
+    int skiped_bytes;
 
     list_link_t free_queue;  // queue header
     list_link_t inuse_queue;
@@ -81,6 +83,8 @@ int rc_buf_queue_clean(rc_buf_queue q) {
     LL_init(&queue->inuse_queue);
 
     queue->dequeue_offset = 0;
+    queue->total_bytes = 0;
+    queue->skiped_bytes = 0;
 
     for (int i = 0; i < queue->swap_count; ++i) {
         LL_insert(&queue->swaps[i].link, queue->free_queue.prev);
@@ -102,6 +106,28 @@ int rc_buf_queue_is_empty(rc_buf_queue q) {
 
     rc_mutex_unlock(queue->buf_lock);
     return is_empty;
+}
+
+int rc_buf_queue_is_full(rc_buf_queue q) {
+    int is_full = 0;
+    rc_buf_queue_t* queue = (rc_buf_queue_t*)q;
+
+    rc_mutex_lock(queue->buf_lock);
+    if (LL_isspin(&queue->free_queue) && !LL_isspin(&queue->inuse_queue) &&
+        RC_BUF_LEFT_SIZE((rc_buf_t*)queue->inuse_queue.prev) == 0) {
+        is_full = 1;
+    }
+
+    rc_mutex_unlock(queue->buf_lock);
+    return is_full;
+}
+
+int rc_buf_queue_get_size(rc_buf_queue q) {
+    rc_buf_queue_t* queue = (rc_buf_queue_t*)q;
+    // rc_mutex_lock(queue->buf_lock);
+    int len = queue->total_bytes;
+    // rc_mutex_unlock(queue->buf_lock);
+    return len;
 }
 
 int _enqueue_data(rc_buf_queue_t* queue, const char* data, int len) {
@@ -134,6 +160,21 @@ int _enqueue_data(rc_buf_queue_t* queue, const char* data, int len) {
     return offset;
 }
 
+int _skip_header(rc_buf_queue_t* queue, int len) {
+    int left_skip_bytes = queue->skip_header_bytes - queue->skiped_bytes;
+    if (left_skip_bytes > 0) {         // still has size to skip
+        if (len <= left_skip_bytes) {  // all bytes had skiped
+            queue->skiped_bytes += len;
+            return len;
+        } else {
+            queue->skiped_bytes = queue->skip_header_bytes;
+            return left_skip_bytes;
+        }
+    }
+
+    return 0;
+}
+
 int rc_buf_queue_push(rc_buf_queue q, const char* data, int len,
                       int timeout_ms) {
     mstime_t stm = rc_get_mstick() + timeout_ms;
@@ -143,7 +184,12 @@ int rc_buf_queue_push(rc_buf_queue q, const char* data, int len,
     while (offset < len) {
         rc_mutex_lock(queue->buf_lock);
 
-        offset += _enqueue_data(queue, data + offset, len - offset);
+        offset += _skip_header(queue, len);  // skip header
+
+        int rlen = _enqueue_data(queue, data + offset, len - offset);
+
+        queue->total_bytes += rlen;
+        offset += rlen;
 
         rc_mutex_unlock(queue->buf_lock);
 
@@ -202,7 +248,10 @@ int rc_buf_queue_pop(rc_buf_queue q, char* data, int len, int timeout_ms) {
     while (offset < len) {
         rc_mutex_lock(queue->buf_lock);
 
-        offset += _dequeue_data(queue, data + offset, len - offset);
+        int rlen = _dequeue_data(queue, data + offset, len - offset);
+
+        queue->total_bytes -= rlen;
+        offset += rlen;
 
         rc_mutex_unlock(queue->buf_lock);
 

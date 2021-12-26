@@ -14,7 +14,6 @@ rc_thread rc_thread_create(rc_thread_function func, void* arg);
 
 int rc_thread_join(rc_thread thread);
 
-
 // framework/system/include/rc_event.h
 typedef void* rc_event;
 
@@ -26,7 +25,6 @@ int rc_event_signal(rc_event event);
 
 int rc_event_uninit(rc_event event);
 
-
 // framework/system/include/rc_mutex.h
 typedef void* rc_mutex;
 
@@ -35,5 +33,8 @@ rc_mutex rc_mutex_create(void* attr);
 int rc_mutex_lock(rc_mutex mutex);
 int rc_mutex_unlock(rc_mutex mutex);
 int rc_mutex_destroy(rc_mutex mutex);
+
+// rc_buf_queue
+typedef void* rc_buf_queue;
 
 #endif
