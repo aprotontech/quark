@@ -19,9 +19,6 @@ ADD_TARGET_LINK_LIBRARIES(driver_static system rcutils logs)
 # 3.Set properties
 SET_MODULE_PROPERTIES(driver_static PROPERTIES OUTPUT_NAME "driver")
 
-# 4.Install executable,libraries,include,doc,demo source code etc.
-#INSTALL(TARGETS http_static DESTINATION ${INSTALL_DIR}/lib/static)
-#INSTALL(DIRECTORY include DESTINATION ${INSTALL_DIR})
 
 # 5.Create module install target
 ADD_MODULE_INSTALL(driver_install)

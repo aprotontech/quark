@@ -8,13 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifndef QUARK_SYSTEM
-#define QUARK_SYSTEM 1
-#endif
-
-#if QUARK_SYSTEM == 1
-#define __QUARK_FREERTOS__ 1
-#endif
+#include "os_platform.h"
 
 #ifdef __QUARK_RTTHREAD__
 #include "rc_rtos.h"
@@ -22,9 +16,11 @@
 
 #ifdef __QUARK_LINUX__
 #include <arpa/inet.h>
+#include <ctype.h>
 #include <netdb.h>
 #include <pthread.h>
 #include <sys/socket.h>
+
 
 #endif
 

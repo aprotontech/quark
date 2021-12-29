@@ -13,26 +13,25 @@
  *
  **/
 
-#include "rc_mqtt.h"
 #include "logs.h"
-#include "rc_json.h"
 #include "mqtt_adaptor.h"
+#include "rc_json.h"
+#include "rc_mqtt.h"
 
 #define INTERVAL_COUNT (sizeof(_mqtt_reconnect_interval) / sizeof(short))
 
 #define MQ_TIMER_INTERVAL 5
 
-short _mqtt_reconnect_interval[] = {
-    5, 10, 10, 20, 30, 40, 60
-};
+short _mqtt_reconnect_interval[] = {5, 10, 10, 20, 30, 40, 60};
 
-int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *message);
-void delivered(void *context, MQTTClient_deliveryToken dt);
-void connlost(void *context, char *cause);
+int msgarrvd(void* context, char* topicName, int topicLen,
+             MQTTClient_message* message);
+void delivered(void* context, MQTTClient_deliveryToken dt);
+void connlost(void* context, char* cause);
 
-mqtt_client rc_mqtt_create(const char* host, int port, 
-        const char* app_id, const char* client_id, const char* username, mqtt_session_token_callback callback)
-{
+mqtt_client rc_mqtt_create(const char* host, int port, const char* app_id,
+                           const char* client_id, const char* username,
+                           mqtt_session_token_callback callback) {
     char addr[100] = {0};
     rc_mqtt_client* mqtt = NULL;
 
@@ -42,18 +41,20 @@ mqtt_client rc_mqtt_create(const char* host, int port,
         return NULL;
     }
 
-    LOGI(MQ_TAG, "mqtt client remote(%s), app_id(%s), client_id(%s), username(%s)", 
-            addr, app_id, client_id, username);
-    
+    LOGI(MQ_TAG,
+         "mqtt client remote(%s), app_id(%s), client_id(%s), username(%s)",
+         addr, app_id, client_id, username);
+
     if (callback == NULL) {
         LOGI(MQ_TAG, "session callback is null");
         return NULL;
     }
 
     if (app_id == NULL || client_id == NULL) {
-        LOGI(MQ_TAG, "input appId(%s), clientId(%s) is invalidate", app_id, client_id);
+        LOGI(MQ_TAG, "input appId(%s), clientId(%s) is invalidate", app_id,
+             client_id);
         return NULL;
-    } 
+    }
 
     mqtt = (rc_mqtt_client*)rc_malloc(sizeof(rc_mqtt_client));
     memset(mqtt, 0, sizeof(rc_mqtt_client));
@@ -86,7 +87,7 @@ mqtt_client rc_mqtt_create(const char* host, int port,
         rc_free(mqtt);
         return NULL;
     }
-    
+
     mqtt->get_session = callback;
     mqtt->on_connect = NULL;
 
@@ -94,47 +95,47 @@ mqtt_client rc_mqtt_create(const char* host, int port,
     mqtt->has_sub_failed = 0;
     mqtt->reconn_timer = NULL;
     mqtt->sub_map = hashmap_new();
-
+#if defined(__QUARK_FREERTOS__) || defined(__QUARK_RTTHREAD__)
     mqtt->client = &mqtt->wrap;
+#endif
     ret = MQTTClient_create(&mqtt->client, addr, mqtt->client_id,
-        MQTTCLIENT_PERSISTENCE_NONE, NULL);
+                            MQTTCLIENT_PERSISTENCE_NONE, NULL);
     if (ret != 0) {
         LOGI(MQ_TAG, "create mqtt client failed with %d", ret);
         rc_free(mqtt);
         return NULL;
     }
     MQTTClient_setCallbacks(mqtt->client, mqtt, connlost, msgarrvd, delivered);
-    
+
     LOGI(MQ_TAG, "mqtt(%p), client_id(%s) created", mqtt, mqtt->client_id);
 
     return mqtt;
 }
 
-int is_topic_match(const char* topic, const char* client_prefix, const char* func_prefix)
-{
+int is_topic_match(const char* topic, const char* client_prefix,
+                   const char* func_prefix) {
     const char* org = topic;
 
     while (*client_prefix != '\0') {
         if (*topic == '\0' || *topic != *client_prefix) return 0;
-        ++ client_prefix;
-        ++ topic;
+        ++client_prefix;
+        ++topic;
     }
-    
+
     if (*topic == '\0' || *topic != MQTT_TOPIC_SEP) return 0;
-    ++ topic;
+    ++topic;
 
     while (*func_prefix != '\0') {
         if (*topic == '\0' || *topic != *func_prefix) return 0;
-        ++ func_prefix;
-        ++ topic;
+        ++func_prefix;
+        ++topic;
     }
 
     return topic - org;
 }
 
-int do_rpc_callback(rc_mqtt_client* mqtt, mqtt_rpc_event_callback callback, 
-        char* msgId, char* acktopic, char* body)
-{
+int do_rpc_callback(rc_mqtt_client* mqtt, mqtt_rpc_event_callback callback,
+                    char* msgId, char* acktopic, char* body) {
     any_t p;
     int ret;
     char str_rc[10] = {0};
@@ -143,51 +144,53 @@ int do_rpc_callback(rc_mqtt_client* mqtt, mqtt_rpc_event_callback callback,
     rc_buf_t response = rc_buf_stack();
 
     ret = callback(mqtt, body, strlen(body), &response);
-    snprintf(str_rc, sizeof(str_rc)-1, "%d", ret);
+    snprintf(str_rc, sizeof(str_rc) - 1, "%d", ret);
     BEGIN_JSON_OBJECT(body)
-        JSON_OBJECT_ADD_STRING(body, i, msgId);
-        JSON_OBJECT_ADD_OBJECT(body, c)
-            JSON_OBJECT_ADD_STRING(c, rc, str_rc);
-            if (ret == RC_SUCCESS && rc_buf_head_ptr(&response) != NULL) {
-                JSON_OBJECT_ADD_STRING(c, body, rc_buf_head_ptr(&response));
-            }
-        END_JSON_OBJECT_ITEM(c)
-        output = JSON_TO_STRING(body);
+    JSON_OBJECT_ADD_STRING(body, i, msgId);
+    JSON_OBJECT_ADD_OBJECT(body, c)
+    JSON_OBJECT_ADD_STRING(c, rc, str_rc);
+    if (ret == RC_SUCCESS && rc_buf_head_ptr(&response) != NULL) {
+        JSON_OBJECT_ADD_STRING(c, body, rc_buf_head_ptr(&response));
+    }
+    END_JSON_OBJECT_ITEM(c)
+    output = JSON_TO_STRING(body);
     END_JSON_OBJECT(body);
 #ifdef __QUARK_RTTHREAD__
-    ret = MQTTClient_publish(mqtt->client, acktopic, strlen(output), output, MQTT_RPC_QOS, 0, &token);
+    ret = MQTTClient_publish(mqtt->client, acktopic, strlen(output), output,
+                             MQTT_RPC_QOS, 0, &token);
 #elif defined(__QUARK_FREERTOS__)
     ret = RC_ERROR_NOT_IMPLEMENT;
 #elif defined(__QUARK_LINUX__)
-    ret = MQTTClient_publish(mqtt->client, acktopic, strlen(output), output, MQTT_RPC_QOS, 0, &token);
+    ret = MQTTClient_publish(mqtt->client, acktopic, strlen(output), output,
+                             MQTT_RPC_QOS, 0, &token);
 #endif
     if (output != NULL) {
         free(output);
         output = NULL;
     }
-    
-    LOGI(MQ_TAG, "mqtt client rpc ack(%s), ret(%d), msgId(%s), rc(%s), content(%s)", 
-            acktopic, ret, msgId, str_rc, rc_buf_head_ptr(&response));
+
+    LOGI(MQ_TAG,
+         "mqtt client rpc ack(%s), ret(%d), msgId(%s), rc(%s), content(%s)",
+         acktopic, ret, msgId, str_rc, rc_buf_head_ptr(&response));
     rc_buf_free(&response);
     return RC_SUCCESS;
 }
 
-int parse_rpc_msg(cJSON* input, char** msgId, char** acktopic, char** body)
-{
+int parse_rpc_msg(cJSON* input, char** msgId, char** acktopic, char** body) {
     BEGIN_MAPPING_JSON(input, root)
-        JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, i, *msgId)
-        JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, a, *acktopic)
-        JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, c, *body)
+    JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, i, *msgId)
+    JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, a, *acktopic)
+    JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, c, *body)
     END_MAPPING_JSON(root);
     return 0;
 }
 
-int on_rpc_message(rc_mqtt_client* mqtt, const char *topic, MQTTClient_message *message)
-{
+int on_rpc_message(rc_mqtt_client* mqtt, const char* topic,
+                   MQTTClient_message* message) {
     int ret = 0;
     char* msgId = NULL;
     char* acktopic = NULL;
-    char* body = NULL, *payload = NULL;
+    char *body = NULL, *payload = NULL;
     cJSON* root = NULL;
     any_t p;
     mqtt_subscribe_t* sub = NULL;
@@ -223,16 +226,15 @@ int on_rpc_message(rc_mqtt_client* mqtt, const char *topic, MQTTClient_message *
             ret = do_rpc_callback(mqtt, callback, msgId, acktopic, body);
         }
         cJSON_Delete(root);
-    }
-    else {
+    } else {
         LOGW("[MQTT]", "parse mqtt rpc message content failed");
     }
 
     return ret;
 }
 
-int on_normal_message(rc_mqtt_client* mqtt, const char *topic, MQTTClient_message *message)
-{
+int on_normal_message(rc_mqtt_client* mqtt, const char* topic,
+                      MQTTClient_message* message) {
     int ret;
     any_t p;
     mqtt_subscribe_t* sub = NULL;
@@ -255,15 +257,14 @@ int on_normal_message(rc_mqtt_client* mqtt, const char *topic, MQTTClient_messag
     return callback(mqtt, message->payload, message->payloadlen);
 }
 
-int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *message)
-{
+int msgarrvd(void* context, char* topicName, int topicLen,
+             MQTTClient_message* message) {
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, context);
-    LOGI(MQ_TAG, "mqtt(%p) msgarrvd, topic(%s), message-len(%d)", 
-            mqtt, topicName, message->payloadlen);
+    LOGI(MQ_TAG, "mqtt(%p) msgarrvd, topic(%s), message-len(%d)", mqtt,
+         topicName, message->payloadlen);
     if (is_topic_match(topicName, mqtt->topic_prefix, MQTT_TOPIC_RPC)) {
         on_rpc_message(mqtt, topicName, message);
-    }
-    else if (is_topic_match(topicName, mqtt->topic_prefix, MQTT_TOPIC_CMD)) {
+    } else if (is_topic_match(topicName, mqtt->topic_prefix, MQTT_TOPIC_CMD)) {
         on_normal_message(mqtt, topicName, message);
     }
     MQTTClient_free(topicName);
@@ -271,8 +272,7 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
     return 1;
 }
 
-void connlost(void *context, char *cause)
-{
+void connlost(void* context, char* cause) {
     rc_mqtt_client* mqtt = (rc_mqtt_client*)context;
     LOGI(MQ_TAG, "mqtt(%p) connect lost, cause(%s)", mqtt, cause);
     if (mqtt->on_connect != NULL) {
@@ -280,14 +280,12 @@ void connlost(void *context, char *cause)
     }
 }
 
-void delivered(void *context, MQTTClient_deliveryToken dt)
-{
+void delivered(void* context, MQTTClient_deliveryToken dt) {
     rc_mqtt_client* mqtt = (rc_mqtt_client*)context;
     LOGI(MQ_TAG, "mqtt(%p) delivered, token(%d)", mqtt, dt);
 }
 
-int re_subscribe(any_t client, const char* topic, any_t val)
-{
+int re_subscribe(any_t client, const char* topic, any_t val) {
     int ret;
     mqtt_subscribe_t* sub = (mqtt_subscribe_t*)val;
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
@@ -297,20 +295,19 @@ int re_subscribe(any_t client, const char* topic, any_t val)
         if (ret != MQTTCLIENT_SUCCESS) {
             mqtt->has_sub_failed = 1;
             LOGI(MQ_TAG, "subscribe(%s) failed, ret(%d)", topic, ret);
-        }
-        else sub->error = 0;
+        } else
+            sub->error = 0;
     }
 
     return MAP_OK;
 }
 
-int mqtt_connect_to_remote(rc_mqtt_client* mqtt)
-{
+int mqtt_connect_to_remote(rc_mqtt_client* mqtt) {
     int ret;
     char* passwd = (char*)mqtt->get_session(mqtt->client_id);
-    
-    LOGI(MQ_TAG, "mqtt(%p) connect clientId(%s), token(%s)", 
-            mqtt, mqtt->client_id, passwd);
+
+    LOGI(MQ_TAG, "mqtt(%p) connect clientId(%s), token(%s)", mqtt,
+         mqtt->client_id, passwd);
     if (passwd == NULL || strlen(passwd) >= MQTT_PASSWD_MAX_LENGTH) {
         LOGI(MQ_TAG, "input mqtt password is invalidate");
         return -1;
@@ -335,15 +332,16 @@ int mqtt_connect_to_remote(rc_mqtt_client* mqtt)
     conn_opts.connectTimeout = 3;
     conn_opts.retryInterval = 10;
     conn_opts.cleansession = 1;
-    conn_opts.clientID = mqtt->client_id;
+    // conn_opts.clientID = mqtt->client_id;
     conn_opts.username = mqtt->user_name;
     conn_opts.password = mqtt->passwd;
     ret = MQTTClient_connect(mqtt->client, &conn_opts);
 #endif
 
-    LOGI(MQ_TAG, "mqtt(%p) connect, ret(%d)-%s", mqtt, ret, ret==0?"success":"failed");
+    LOGI(MQ_TAG, "mqtt(%p) connect, ret(%d)-%s", mqtt, ret,
+         ret == 0 ? "success" : "failed");
 
-    if (ret == MQTTCLIENT_SUCCESS) { // connect success    
+    if (ret == MQTTCLIENT_SUCCESS) {  // connect success
         rc_mutex_lock(mqtt->mobject);
         mqtt->force_re_sub = 1;
         mqtt->has_sub_failed = 0;
@@ -351,7 +349,7 @@ int mqtt_connect_to_remote(rc_mqtt_client* mqtt)
         mqtt->force_re_sub = 0;
         rc_mutex_unlock(mqtt->mobject);
     }
-    
+
     mqtt->last_reconnect_time = (int)time(NULL);
     mqtt->connectResult = ret;
 
@@ -359,14 +357,14 @@ int mqtt_connect_to_remote(rc_mqtt_client* mqtt)
     if (mqtt->on_connect != NULL) {
         char error[40] = {0};
         snprintf(error, sizeof(error), "mqtt connect result: %d", ret);
-        mqtt->on_connect(mqtt, ret ? MQTT_STATUS_DISCONNECT : MQTT_STATUS_CONNECTED, error);
+        mqtt->on_connect(
+            mqtt, ret ? MQTT_STATUS_DISCONNECT : MQTT_STATUS_CONNECTED, error);
     }
 #endif
     return ret;
 }
 
-int mqtt_on_timer(rc_timer timer, void* client)
-{
+int mqtt_on_timer(rc_timer timer, void* client) {
     int rc = 0;
     int now = time(NULL);
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
@@ -376,32 +374,34 @@ int mqtt_on_timer(rc_timer timer, void* client)
     }
 
     if (MQTTClient_isConnected(mqtt->client)) {
-        if (mqtt->has_sub_failed != 0) { // has subscribe failed topic
+        if (mqtt->has_sub_failed != 0) {  // has subscribe failed topic
             mqtt->has_sub_failed = 0;
             hashmap_iterate(mqtt->sub_map, re_subscribe, mqtt);
         }
     }
 #ifndef __QUARK_RTTHREAD__
-    else if (mqtt->last_reconnect_time + _mqtt_reconnect_interval[mqtt->cur_reconnect_interval_index] <= now) { 
+    else if (mqtt->last_reconnect_time +
+                 _mqtt_reconnect_interval[mqtt->cur_reconnect_interval_index] <=
+             now) {
         // need reconnect to the remote mqtt server
         rc = mqtt_connect_to_remote(mqtt);
 
         if (rc != 0) {
             if (mqtt->cur_reconnect_interval_index != INTERVAL_COUNT - 1) {
-                mqtt->cur_reconnect_interval_index ++;
-                LOGI(MQ_TAG, "reconn interval adjust to %d sec", 
-                        _mqtt_reconnect_interval[mqtt->cur_reconnect_interval_index]);
+                mqtt->cur_reconnect_interval_index++;
+                LOGI(MQ_TAG, "reconn interval adjust to %d sec",
+                     _mqtt_reconnect_interval
+                         [mqtt->cur_reconnect_interval_index]);
             }
-        }
-        else mqtt->cur_reconnect_interval_index = 0;
+        } else
+            mqtt->cur_reconnect_interval_index = 0;
     }
-#endif    
+#endif
 
     return RC_ERROR_MQTT_SKIP_CONN;
 }
 
-int rc_mqtt_connect(mqtt_client client)
-{
+int rc_mqtt_connect(mqtt_client client) {
     int ret;
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
 
@@ -413,8 +413,8 @@ int rc_mqtt_connect(mqtt_client client)
     return mqtt_connect_to_remote(mqtt);
 }
 
-int rc_mqtt_enable_auto_connect(mqtt_client client, rc_timer_manager mgr, mqtt_connect_callback callback, int at_once)
-{
+int rc_mqtt_enable_auto_connect(mqtt_client client, rc_timer_manager mgr,
+                                mqtt_connect_callback callback, int at_once) {
     int rc;
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
     if (mqtt->reconn_timer != NULL) {
@@ -427,17 +427,19 @@ int rc_mqtt_enable_auto_connect(mqtt_client client, rc_timer_manager mgr, mqtt_c
 #elif defined(__QUARK_LINUX__) || defined(__QUARK_FREERTOS__)
     mqtt->cur_reconnect_interval_index = 0;
     mqtt->last_reconnect_time = 0;
-    mqtt->reconn_timer = rc_timer_create(mgr, MQ_TIMER_INTERVAL * 1000, MQ_TIMER_INTERVAL * 1000, mqtt_on_timer, mqtt);
+    mqtt->reconn_timer =
+        rc_timer_create(mgr, MQ_TIMER_INTERVAL * 1000, MQ_TIMER_INTERVAL * 1000,
+                        mqtt_on_timer, mqtt);
 #endif
-    
+
     if (at_once && mqtt->reconn_timer != NULL) {
         rc_timer_ahead_once(mqtt->reconn_timer, 100);
     }
     return RC_SUCCESS;
 }
 
-int rc_mqtt_subscribe(mqtt_client client, const char* topic, mqtt_subscribe_callback callback)
-{
+int rc_mqtt_subscribe(mqtt_client client, const char* topic,
+                      mqtt_subscribe_callback callback) {
     int ret;
     any_t val;
     mqtt_subscribe_t* sub = NULL;
@@ -449,7 +451,8 @@ int rc_mqtt_subscribe(mqtt_client client, const char* topic, mqtt_subscribe_call
 
     rc_mutex_lock(mqtt->mobject);
     if (hashmap_get(mqtt->sub_map, (char*)topic, &val) == MAP_MISSING) {
-        sub = (mqtt_subscribe_t*)rc_malloc(sizeof(mqtt_subscribe_t) + strlen(topic));
+        sub = (mqtt_subscribe_t*)rc_malloc(sizeof(mqtt_subscribe_t) +
+                                           strlen(topic));
         memset(sub, 0, sizeof(mqtt_subscribe_t));
         sub->type = 0;
         sub->callback = callback;
@@ -458,7 +461,8 @@ int rc_mqtt_subscribe(mqtt_client client, const char* topic, mqtt_subscribe_call
         rc_mutex_unlock(mqtt->mobject);
 
         if (ret != MAP_OK) {
-            LOGW(MQ_TAG, "mqtt(%p) bind topic(%s) failed with(%d)", mqtt, topic, ret);
+            LOGW(MQ_TAG, "mqtt(%p) bind topic(%s) failed with(%d)", mqtt, topic,
+                 ret);
             rc_free(sub);
             return RC_ERROR_MQTT_SUBSCRIBE;
         }
@@ -470,10 +474,9 @@ int rc_mqtt_subscribe(mqtt_client client, const char* topic, mqtt_subscribe_call
             sub->error = 1;
             mqtt->has_sub_failed = 1;
         }
-    }
-    else {
+    } else {
         ret = MAP_OK;
-        ((mqtt_subscribe_t*)val)->callback = callback; // update callback
+        ((mqtt_subscribe_t*)val)->callback = callback;  // update callback
         rc_mutex_unlock(mqtt->mobject);
     }
 
@@ -481,31 +484,33 @@ int rc_mqtt_subscribe(mqtt_client client, const char* topic, mqtt_subscribe_call
     return RC_SUCCESS;
 }
 
-int rc_mqtt_publish(mqtt_client client, const char* topic, const char* body, int len)
-{
+int rc_mqtt_publish(mqtt_client client, const char* topic, const char* body,
+                    int len) {
     int ret;
     MQTTClient_deliveryToken token;
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
-    if (is_topic_match(topic, mqtt->topic_prefix, MQTT_TOPIC_EVT) == 0 && 
-        is_topic_match(topic, mqtt->topic_prefix, MQTT_TOPIC_CMD) == 0) { // for test to send cmd
+    if (is_topic_match(topic, mqtt->topic_prefix, MQTT_TOPIC_EVT) == 0 &&
+        is_topic_match(topic, mqtt->topic_prefix, MQTT_TOPIC_CMD) ==
+            0) {  // for test to send cmd
         LOGI(MQ_TAG, "invalidate mqtt event topic(%s)", topic);
         return RC_ERROR_MQTT_PUBLISH;
     }
 
-    ret = MQTTClient_publish(mqtt->client, (char*)topic, len, (char*)body, MQTT_CMD_QOS, 0, &token);
+    ret = MQTTClient_publish(mqtt->client, (char*)topic, len, (char*)body,
+                             MQTT_CMD_QOS, 0, &token);
 
-    LOGI(MQ_TAG, "mqtt(%p) publish(%s), content-length(%d), ret(%d), token(%d)", 
-            mqtt, topic, len, ret, token)
+    LOGI(MQ_TAG, "mqtt(%p) publish(%s), content-length(%d), ret(%d), token(%d)",
+         mqtt, topic, len, ret, token)
     return ret == 0 ? RC_SUCCESS : RC_ERROR_MQTT_PUBLISH;
 }
 
-int rc_mqtt_rpc_send(mqtt_client client, const char* topic, const char* body, int len, int timeout, rc_buf_t* response)
-{
+int rc_mqtt_rpc_send(mqtt_client client, const char* topic, const char* body,
+                     int len, int timeout, rc_buf_t* response) {
     return 0;
 }
 
-int rc_mqtt_rpc_event(mqtt_client client, const char* topic, mqtt_rpc_event_callback callback)
-{
+int rc_mqtt_rpc_event(mqtt_client client, const char* topic,
+                      mqtt_rpc_event_callback callback) {
     int ret, i;
     any_t val = NULL;
     mqtt_subscribe_t* sub = NULL;
@@ -519,7 +524,8 @@ int rc_mqtt_rpc_event(mqtt_client client, const char* topic, mqtt_rpc_event_call
 
     rc_mutex_lock(mqtt->mobject);
     if (hashmap_get(mqtt->sub_map, (char*)topic, &val) == MAP_MISSING) {
-        sub = (mqtt_subscribe_t*)rc_malloc(sizeof(mqtt_subscribe_t) + strlen(topic));
+        sub = (mqtt_subscribe_t*)rc_malloc(sizeof(mqtt_subscribe_t) +
+                                           strlen(topic));
         memset(sub, 0, sizeof(mqtt_subscribe_t));
         sub->type = 1;
         sub->callback = callback;
@@ -528,7 +534,8 @@ int rc_mqtt_rpc_event(mqtt_client client, const char* topic, mqtt_rpc_event_call
         rc_mutex_unlock(mqtt->mobject);
 
         if (ret != MAP_OK) {
-            LOGW(MQ_TAG, "mqtt(%p) bind topic(%s) failed with(%d)", mqtt, topic, ret);
+            LOGW(MQ_TAG, "mqtt(%p) bind topic(%s) failed with(%d)", mqtt, topic,
+                 ret);
             rc_free(sub);
             return RC_ERROR_MQTT_SUBSCRIBE;
         }
@@ -542,10 +549,9 @@ int rc_mqtt_rpc_event(mqtt_client client, const char* topic, mqtt_rpc_event_call
             sub->error = 1;
             mqtt->has_sub_failed = 1;
         }
-    }
-    else {
+    } else {
         ret = MAP_OK;
-        ((mqtt_subscribe_t*)val)->callback = callback; // update callback
+        ((mqtt_subscribe_t*)val)->callback = callback;  // update callback
         rc_mutex_unlock(mqtt->mobject);
     }
 
@@ -553,14 +559,12 @@ int rc_mqtt_rpc_event(mqtt_client client, const char* topic, mqtt_rpc_event_call
     return 0;
 }
 
-int sub_item_free(any_t ipm, const char* key, any_t value)
-{
+int sub_item_free(any_t ipm, const char* key, any_t value) {
     rc_free(value);
     return RC_SUCCESS;
 }
 
-int rc_mqtt_close(mqtt_client client)
-{
+int rc_mqtt_close(mqtt_client client) {
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
 
     if (mqtt->reconn_timer != NULL) {
@@ -578,4 +582,3 @@ int rc_mqtt_close(mqtt_client client)
     LOGI(MQ_TAG, "mqtt(%p) free", mqtt);
     return 0;
 }
-

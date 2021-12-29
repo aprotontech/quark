@@ -1,3 +1,16 @@
+/*
+ * **************************************************************************
+ * 
+ *  Copyright (c) 2021 aproton.tech, Inc. All Rights Reserved
+ * 
+ * **************************************************************************
+ * 
+ *  @file     esp32_mqtt_adaptor.h
+ *  @author   kuper - <kuper@aproton.tech>
+ *  @data     2021-12-26 09:30:39
+ * 
+ */
+
 
 
 #ifndef _QUARK_MQTT_ESP32_ADAPTOR_

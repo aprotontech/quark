@@ -16,6 +16,8 @@ CMakeFiles/
 Makefile
 lib/
 bin/
+build/
+third/paho
 VersionInfo.h
 CPackSourceConfig.cmake
 CPackConfig.cmake

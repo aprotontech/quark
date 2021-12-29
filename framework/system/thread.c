@@ -74,6 +74,10 @@ static void freertos_thread_adaptor(void* args) {
     }
 }
 
+#elif defined(__QUARK_LINUX__)
+#define RC_DEFAULT_THREAD_STACK_SIZE 0
+#define RC_DEFAULT_THREAD_PRIORITY 0
+
 #endif
 
 rc_thread rc_thread_create(rc_thread_function func, void* arg, void* ctx) {
