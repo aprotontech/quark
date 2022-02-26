@@ -26,8 +26,7 @@
 
 extern char* ans_build_request_json_body(const char* app_id,
                                          const char* device_id);
-extern int parse_json_config(rcservice_mgr_t* service_mgr, const char* json,
-                             map_t* smap);
+extern int parse_json_config(const char* json, map_t* smap);
 
 int free_hash_item(any_t n, const char* key, any_t val) {
     rc_free(val);
@@ -36,8 +35,11 @@ int free_hash_item(any_t n, const char* key, any_t val) {
 
 int service_cleanup(any_t n, const char* key, any_t val) {
     DECLEAR_REAL_VALUE(rc_service_t, service, val);
-    hashmap_iterate(service->protocols, free_hash_item, NULL);
-    hashmap_free(service->protocols);
+    // hashmap_iterate(service->protocols, free_hash_item, NULL);
+    if (service->protocols != NULL) {
+        hashmap_free(service->protocols);
+    }
+
     rc_free(service);
     return 0;
 }
@@ -113,40 +115,48 @@ int merge_new_services(rcservice_mgr_t* mgr, map_t new_services,
 int rc_service_sync(ans_service ans) {
     DECLEAR_REAL_VALUE(rcservice_mgr_t, mgr, ans);
 
-    rc_mutex_lock(&mgr->mobject);
+    if (mgr->timer != NULL) {
+        rc_timer_ahead_once(mgr->timer, 10);
+    }
+
+    return 0;
+}
+
+int ans_service_do_sync(rcservice_mgr_t* mgr) {
+    rc_mutex_lock(mgr->mobject);
     if (mgr->sync_status) {
-        rc_mutex_unlock(&mgr->mobject);
+        rc_mutex_unlock(mgr->mobject);
         LOGI(SC_TAG, "ans service is syncing or synced, so skip");
         return -1;
     }
 
     mgr->sync_status = 1;  // mark is syncing
-    rc_mutex_unlock(&mgr->mobject);
+    rc_mutex_unlock(mgr->mobject);
 
     char* reqbody = ans_build_request_json_body(mgr->app_id, mgr->device_id);
     rc_buf_t response = rc_buf_stack();
     if (200 == http_post(mgr->httpmgr, mgr->url, NULL, NULL, 0, reqbody,
                          strlen(reqbody), 3000, &response)) {
-        map_t new_service_map = NULL;
-        if (0 == parse_json_config(mgr, rc_buf_head_ptr(&response),
-                                   &new_service_map)) {
-            rc_mutex_lock(&mgr->mobject);
+        map_t new_services = NULL;
+        if (parse_json_config(rc_buf_head_ptr(&response), &new_services) == 0) {
+            rc_mutex_lock(mgr->mobject);
 
             mgr->sync_status = 2;
-            merge_new_services(mgr, new_service_map, 1);
-            hashmap_free(new_service_map);
+            merge_new_services(mgr, new_services, 1);
+            hashmap_free(new_services);
 
-            rc_mutex_unlock(&mgr->mobject);
+            rc_mutex_unlock(mgr->mobject);
         }
     }
 
     free(reqbody);
+    rc_buf_free(&response);
 
-    rc_mutex_lock(&mgr->mobject);
+    rc_mutex_lock(mgr->mobject);
     if (mgr->sync_status != 2) {
         mgr->sync_status = 0;  // mark is idle
     }
-    rc_mutex_unlock(&mgr->mobject);
+    rc_mutex_unlock(mgr->mobject);
 
     return 0;
 }
@@ -161,7 +171,7 @@ static int ans_check_timer(rc_timer timer, void* usr_data) {
 
     // network is ok now
 
-    rc_service_sync(mgr);
+    ans_service_do_sync(mgr);
 
     if (mgr->sync_status == 2) {
         LOGI(SC_TAG, "finish query services, so close the timer");
@@ -271,8 +281,10 @@ int rc_service_query(ans_service ans, const char* name, const char* protocol,
         }
     }
     rc_mutex_unlock(mgr->mobject);
+    LOGI(SC_TAG, "not found information of service(%s), protocol(%s)", name,
+         protocol);
 
-    return 0;
+    return RC_ERROR_SVRMGR_NODNS;
 }
 
 int rc_service_dns_resolve(ans_service ans, const char* host,

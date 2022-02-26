@@ -61,9 +61,11 @@ int json_to_service(cJSON* v, const char* service_name, rc_service_t** output) {
         JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, prefix, tmp.prefix)
         JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, host, tmp.host)
         JSON_OBJECT_EXTRACT_ARRAY(root, ips)
-        JSON_OBJECT_EXTRACT_ARRAY(root, protocols)
         nips = cJSON_GetArraySize(JSON(ips));
+
+        JSON_OBJECT_EXTRACT_OBJECT_BEGIN(root, protocols)
         nprotocols = cJSON_GetArraySize(JSON(protocols));
+        JSON_OBJECT_EXTRACT_OBJECT_END(root)
     END_MAPPING_JSON(root)
 
     if (nips <= 0) nips = 1;
@@ -103,8 +105,8 @@ int json_to_service(cJSON* v, const char* service_name, rc_service_t** output) {
             }
         JSON_ARRAY_END_FOREACH(ips, ip)
 
-        JSON_OBJECT_EXTRACT_ARRAY(root, protocols)
-        JSON_ARRAY_FOREACH(ips, protocol)
+        JSON_OBJECT_EXTRACT_OBJECT_BEGIN(root, protocols)
+        JSON_ARRAY_FOREACH(protocols, protocol)
             if (JSON(protocol)->string != NULL &&
                 strlen(JSON(protocol)->string) < 10 &&
                 JSON(protocol)->type == cJSON_Number) {
@@ -115,7 +117,8 @@ int json_to_service(cJSON* v, const char* service_name, rc_service_t** output) {
 
                 ++protocol_ptr;
             }
-        JSON_ARRAY_END_FOREACH(ips, protocol)
+        JSON_ARRAY_END_FOREACH(protocols, protocol)
+        JSON_OBJECT_EXTRACT_OBJECT_END(root)
 
     END_MAPPING_JSON(root)
 
@@ -129,9 +132,9 @@ int json_to_service(cJSON* v, const char* service_name, rc_service_t** output) {
     return RC_SUCCESS;
 }
 
-int parse_json_config(const char* json, map_t* smap) {
+int parse_json_config(const char* str, map_t* smap) {
     int rc;
-    BEGIN_EXTRACT_JSON(json, root)
+    BEGIN_EXTRACT_JSON(str, root)
         JSON_OBJECT_EXTRACT_INT_TO_VALUE(root, rc, rc)
         if (rc == 0) {
             *smap = hashmap_new();

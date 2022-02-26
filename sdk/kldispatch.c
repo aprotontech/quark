@@ -317,8 +317,10 @@ int get_mqtt_host_port(rc_runtime_t* env, const char* service, char* ip,
         if (rc_service_query(env->ansmgr, "keepalive", "mqtt", &info) == 0) {
             strcpy(ip, info.ip);
             *port = info.port;
+
+            return 0;
         }
     }
 
-    return 0;
+    return -1;
 }

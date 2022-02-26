@@ -102,7 +102,7 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info,
 
     {  // init ans service
         char url[100] = {0};
-        snprintf("%s%s", sizeof(url), env->settings.service_url,
+        snprintf(url, sizeof(url), "%s%s", env->local.default_service_url,
                  ANS_QUERY_PATH);
         env->ansmgr =
             rc_service_init(env->settings.app_id, env->settings.uuid, url,

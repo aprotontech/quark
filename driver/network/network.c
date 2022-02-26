@@ -22,6 +22,12 @@ int is_network_available(rc_network_manager nm, int level) {
     return mgr->status;
 }
 
+int network_set_available(rc_network_manager nm, int available) {
+    DECLEAR_REAL_VALUE(rc_network_manager_t, mgr, nm);
+    mgr->status = available;
+    return 0;
+}
+
 rc_network_manager network_manager_init(int current_status) {
     rc_network_manager_t* mgr =
         (rc_network_manager_t*)rc_malloc(sizeof(rc_network_manager_t));

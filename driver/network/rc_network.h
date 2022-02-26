@@ -21,6 +21,8 @@ typedef void* rc_network_manager;
 // is network available
 int is_network_available(rc_network_manager mgr, int level);
 
+int network_set_available(rc_network_manager mgr, int available);
+
 rc_network_manager network_manager_init(int current_status);
 
 int network_manager_uninit(rc_network_manager mgr);

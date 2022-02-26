@@ -24,7 +24,7 @@ INCLUDE_DIRECTORIES(${SYSTEM_SOURCE_DIR}/include)
 # 2.Add library,dependencies,link libraries
 ADD_OUTPUT_LIBRARY(quark_static STATIC ${LIB_SRC_LIST})
 
-ADD_MODULE_DEPENDENCIES(quark_static driver_static player_static logs_static md5_static json_static rcutils_static system_static)
+ADD_MODULE_DEPENDENCIES(quark_static driver_static player_static ans_static logs_static md5_static json_static rcutils_static system_static)
 
 ADD_TARGET_LINK_LIBRARIES(quark_static driver player logs md5 json rcutils system)
 
