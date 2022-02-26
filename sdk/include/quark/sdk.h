@@ -24,12 +24,14 @@
 
 typedef int (*rc_kl_status_change)(int online, const char* cause);
 typedef int (*rc_session_change)(const char* session, int timeout);
-typedef int (*rc_push_callback)(const char* message, int len, rc_buf_t* response);
+typedef int (*rc_push_callback)(const char* message, int len,
+                                rc_buf_t* response);
 typedef int (*rc_instant_callback)(const char* message, int len);
 
 typedef struct cJSON cJSON;
 typedef int (*rc_netcmd_dispatch_callback)(const char* key, cJSON* data);
-typedef int (*rc_netrpc_dispatch_callback)(const char* key, cJSON* data, rc_buf_t* response);
+typedef int (*rc_netrpc_dispatch_callback)(const char* key, cJSON* data,
+                                           rc_buf_t* response);
 
 typedef int (*rc_sync_time_callback)(int sec, int usec);
 
@@ -52,6 +54,7 @@ typedef enum _rc_iot_platform_type {
 typedef void* rc_hardware_t;
 
 typedef struct _rc_settings_t {
+    char* service_url;
     // input settings
     char* app_id;
     char* client_id;
@@ -68,7 +71,7 @@ typedef struct _rc_settings_t {
 
     rc_wifi_status_callback wifi_status_callback;
 
-//    rc_sync_time_callback time_update;
+    //    rc_sync_time_callback time_update;
     int time_notify_min_diff;
 
     int property_change_report;
@@ -77,7 +80,7 @@ typedef struct _rc_settings_t {
     char enable_ntp_time_sync;
     char new_thread_init;
     char enable_keepalive;
-    char iot_platform; // rc_iot_platform_type
+    char iot_platform;  // rc_iot_platform_type
     char max_device_retry_times;
     char auto_watch_wifi_status;
 
@@ -87,7 +90,8 @@ const char* rc_sdk_version();
 
 rc_settings_t* rc_settings_init(rc_settings_t* setting);
 
-int rc_sdk_init(const char* env_name, int enable_debug_client_info, rc_settings_t* settings);
+int rc_sdk_init(const char* env_name, int enable_debug_client_info,
+                rc_settings_t* settings);
 
 int rc_sdk_uninit();
 
@@ -98,43 +102,48 @@ const char* rc_get_client_id();
 const char* rc_get_session_token();
 
 ///////////////////////
-// PROPERTY 
-int rc_property_define(const char* name, int type, void* init_value, rc_property_change on_change);
+// PROPERTY
+int rc_property_define(const char* name, int type, void* init_value,
+                       rc_property_change on_change);
 int rc_property_set(const char* name, void* value);
 int rc_property_flush();
 int rc_property_get_values(const char* keys, ...);
-
 
 ///////////////////////
 // TIMER
 typedef void* rc_timer;
 typedef int (*rc_timer_callback)(rc_timer timer, void* usr_data);
-rc_timer rc_set_interval(int tick_ms, int repeat_ms, rc_timer_callback on_time, void* usr_data);
+rc_timer rc_set_interval(int tick_ms, int repeat_ms, rc_timer_callback on_time,
+                         void* usr_data);
 int rc_ahead_interval(rc_timer timer, int next_tick_ms);
 int rc_clear_interval(rc_timer timer);
 
 ///////////////////////
 // HTTP
-int rc_http_quark_post(const char* service_name, const char* path, const char* body, int timeout, rc_buf_t* response);
-
+int rc_http_quark_post(const char* service_name, const char* path,
+                       const char* body, int timeout, rc_buf_t* response);
 
 ///////////////////////
 // Downloader
 
 typedef void* rc_downloader;
-typedef int (*on_download_callback)(rc_downloader downloader, const char* data, int len);
+typedef int (*on_download_callback)(rc_downloader downloader, const char* data,
+                                    int len);
 
 typedef enum _rc_download_type_t {
     DOWNLOAD_TO_CALLBACK,
     DOWNLOAD_TO_BUF_QUEUE,
     DOWNLOAD_TO_FILE,
-} rc_download_type_t ;
+} rc_download_type_t;
 
-rc_downloader rc_downloader_init(const char* url, const char* headers[], int header_count, int timeout_ms, rc_download_type_t type, void* data);
+rc_downloader rc_downloader_init(const char* url, const char* headers[],
+                                 int header_count, int timeout_ms,
+                                 rc_download_type_t type, void* data);
 
 int rc_downloader_start(rc_downloader downloader, int new_thread);
 
-int rc_downloader_get_status(rc_downloader downloader, int* total, int* current);
+int rc_downloader_get_status(rc_downloader downloader, int* total,
+                             int* current);
 
 int rc_downloader_uninit(rc_downloader downloader);
 

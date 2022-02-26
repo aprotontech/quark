@@ -37,7 +37,7 @@ int sync_server_time(rc_timer timer, void* dev) {
     LOGI(SDK_TAG, "sync_server_timer");
     int rc = rc_http_quark_post("DEVICE", "/time", "{\"microSecond\":true}",
                                 500, &response);
-    if (rc == 200) {
+    if (rc == 0) {
         BEGIN_EXTRACT_JSON(rc_buf_head_ptr(&response), root)
         parse_server_time(JSON(root), &now);
         END_EXTRACT_JSON(root)

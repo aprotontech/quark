@@ -16,36 +16,34 @@
 #ifndef _QUARK_SERVICE_H_
 #define _QUARK_SERVICE_H_
 
-#include "ans.h"
+
 #include "hashmap.h"
 #include "rc_crypt.h"
 #include "rc_mutex.h"
+#include "rc_ans.h"
 
 #define SC_TAG "[Service]"
 
+#define DEFAULT_SERVICE "default"
 
-#define MAX_ANS_SERVICES 5
-
-typedef char* local_config_string_t[MAX_ANS_SERVICES][4];
-
-typedef struct _rc_service_t {
-    int validtm;
+typedef struct _rc_service_protocol_t {
+    char protocol[10];
     short port;
-    short ip_count;
-    char* service;
-    char* uri;
-    char* host;
-    char* ips[1];
-} rc_service_t;
+} rc_service_protocol_t;
 
 typedef struct _rcservice_mgr_t {
-    char* json;
-    int json_len;
+    char* url;
 
-    rc_ans_config_t config;
+    char* app_id;
+    char* device_id;
 
     rsa_crypt rsa;
     http_manager httpmgr;
+    rc_network_manager netmgr;
+
+    rc_timer timer;
+
+    int sync_status;  // 0: idle, 1: syncing, 2: finished
 
     map_t smap;
 
@@ -53,8 +51,6 @@ typedef struct _rcservice_mgr_t {
 
     rc_mutex mobject;
 
-    rc_buf_t buff;
-    
 } rcservice_mgr_t;
 
 #endif

@@ -13,75 +13,42 @@
  *
  **/
 
-#include "service.h"
 #include "logs.h"
 #include "rc_error.h"
+#include "service.h"
 
-#define COPY_BYTES(property, dest, source) \
-    strcpy(dest, source); \
-    property = dest; \
-    dest += strlen(source) + 1;
-    
+typedef struct _local_service_config_t {
+    char* config;
+    char* env_name;
+} local_service_config_t;
 
-rc_service_t* create_service_item(char* configs[4])
-{
-    char* p = NULL;
-    rc_service_t* s = NULL;
-    int i = 0;
-    int size = sizeof(rc_service_t);
-    for (i = 0; i < 4; ++ i) {
-        size += strlen(configs[i]) + 1;
-    }
-    s = (rc_service_t*)rc_malloc(size);
-    if (s == NULL) {
-        LOGI("ANS", "rc_malloc ans service failed");
-        return NULL;
-    }
+const local_service_config_t _local_configs[] = {
+    {.env_name = "online",
+     .config = "{\"host\":\"api.aproton.tech\",\"ip\":[\"82.157.138.167\"],"
+               "\"prefix\":"
+               "\"\\/\",\"protcol\":{\"http\":80,\"mqtt\":1883}}"}};
 
-    p = (char*)s + sizeof(rc_service_t);
-    
-    s->validtm = 2147183259;
-    s->ip_count = 0;
-    COPY_BYTES(s->service, p, configs[0]);
-    COPY_BYTES(s->uri, p, configs[1]);
-    COPY_BYTES(s->host, p, configs[2]);
-    COPY_BYTES(s->ips[0], p, configs[3]);
+extern int parse_json_config(const char* json, map_t* smap);
 
-    LOGI("[ANS]", "default service(%s), uri(%s), host(%s), ip(%s)", 
-            s->service, s->uri, s->host, s->ips[0]);
+int merge_new_services(rcservice_mgr_t* mgr, map_t new_services, int overwrite);
 
-    return s;
-}
-
-extern int free_hash_item(any_t n, const char* key, any_t val);
-extern map_t build_dns_map(map_t smap);
-
-int load_ans_local_config(ans_service ans, local_config_string_t* local_configs, int services)
-{
-    int i;
-    rc_service_t* s;
-    void* t;
+int rc_service_local_config(ans_service ans, const char* env_name) {
     DECLEAR_REAL_VALUE(rcservice_mgr_t, service_mgr, ans);
 
     rc_mutex_lock(service_mgr->mobject);
-    for (i = 0; i < services; ++ i) {
-        s = create_service_item(local_configs[0][i]);
-        if (s != NULL) {
-            if (hashmap_get(service_mgr->smap, s->service, &t) == MAP_MISSING) {
-                hashmap_put(service_mgr->smap, s->service, s);
+
+    for (int i = 0; i < sizeof(_local_configs) / sizeof(local_service_config_t);
+         ++i) {
+        if (strcmp(_local_configs[i].env_name, env_name) == 0) {
+            map_t services = NULL;
+            if (parse_json_config(_local_configs[i].config, &services) == 0) {
+                merge_new_services(service_mgr, services, 0);
+                hashmap_free(service_mgr);
             }
-            else {
-                LOGW("[ANS]", "exist service(%s)", s->service);
-            }
+            break;
         }
     }
 
-    if (service_mgr->ipmap != NULL) {
-        hashmap_iterate(service_mgr->ipmap, free_hash_item, NULL);
-        hashmap_free(service_mgr->ipmap);
-    }
-
-    service_mgr->ipmap = build_dns_map(service_mgr->smap);
     rc_mutex_unlock(service_mgr->mobject);
 
     return 0;

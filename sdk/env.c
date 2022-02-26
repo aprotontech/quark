@@ -14,6 +14,7 @@
  **/
 
 #include "env.h"
+
 #include "property.h"
 
 #if defined(__QUARK_FREERTOS__)
@@ -21,6 +22,7 @@
 #endif
 
 #define ENV_BUFF_SIZE 64
+#define ANS_QUERY_PATH "/device/dns"
 
 rc_runtime_t* _env;
 void env_free(rc_runtime_t* env);
@@ -33,18 +35,15 @@ int append_hardware_info(rc_runtime_t* env);
 
 int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status);
 
-rc_runtime_t* get_env_instance()
-{
-    return _env;
-}
+rc_runtime_t* get_env_instance() { return _env; }
 
-int rc_sdk_init(const char* env_name, int enable_debug_client_info, rc_settings_t* settings)
-{
+int rc_sdk_init(const char* env_name, int enable_debug_client_info,
+                rc_settings_t* settings) {
     int rc = 0, port, i;
     rc_runtime_t* env = NULL;
     const char* url;
     rc_buf_t* tmp;
-    char *host = NULL;
+    char* host = NULL;
 
     if (_env != NULL) {
         LOGW(SDK_TAG, "quark sdk had init");
@@ -61,10 +60,16 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info, rc_settings_
     _env = env;
 
     env->buff = rc_buf_stack();
-    env->buff.total = ENV_BUFF_SIZE; // expand buffer size
+    env->buff.total = ENV_BUFF_SIZE;  // expand buffer size
 
     memcpy(&env->settings, settings, sizeof(env->settings));
-    //env->time_update = settings->time_update;
+    // env->time_update = settings->time_update;
+
+    if (env->settings.service_url != NULL) {  // use input url
+        env->local.default_service_url = env->settings.service_url;
+    } else {
+        env->local.default_service_url = QUARK_API_URL;
+    }
 
     // hardware info
     append_hardware_info(env);
@@ -84,8 +89,34 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info, rc_settings_
 
     if (env->time_update != NULL) {
         int randtm = (rand() % 1800) + 7200;
-        env->sync_timer = rc_timer_create(env->timermgr, 1000, randtm * 1000, sync_server_time, env);
+        env->sync_timer = rc_timer_create(env->timermgr, 1000, randtm * 1000,
+                                          sync_server_time, env);
     }
+
+    env->netmgr = network_manager_init(0);
+    if (env->netmgr == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, net manager init failed");
+        env_free(env);
+        return RC_ERROR_SDK_INIT;
+    }
+
+    {  // init ans service
+        char url[100] = {0};
+        snprintf("%s%s", sizeof(url), env->settings.service_url,
+                 ANS_QUERY_PATH);
+        env->ansmgr =
+            rc_service_init(env->settings.app_id, env->settings.uuid, url,
+                            env->httpmgr, env->timermgr, env->netmgr);
+    }
+
+    if (env->ansmgr == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, ans manager init failed");
+        env_free(env);
+        return RC_ERROR_SDK_INIT;
+    }
+
+    // load local config
+    rc_service_local_config(env->ansmgr, env_name);
 
     env->wifimgr = wifi_manager_init(quark_on_wifi_status_changed);
     if (env->wifimgr == NULL) {
@@ -102,8 +133,7 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info, rc_settings_
     return 0;
 }
 
-int rc_sdk_uninit()
-{
+int rc_sdk_uninit() {
     if (_env == NULL) {
         LOGW(SDK_TAG, "sdk uninit failed, had not inited");
         return RC_ERROR_SDK_UNINIT;
@@ -113,8 +143,7 @@ int rc_sdk_uninit()
     return 0;
 }
 
-int append_hardware_info(rc_runtime_t* env)
-{
+int append_hardware_info(rc_runtime_t* env) {
     if (env->settings.hardware == NULL) {
         env->settings.hardware = rc_malloc(sizeof(rc_hardware_info));
         memset(env->settings.hardware, 0, sizeof(rc_hardware_info));
@@ -127,14 +156,14 @@ int append_hardware_info(rc_runtime_t* env)
         uint8_t mac[6] = {0};
         esp_read_mac(mac, ESP_MAC_WIFI_STA);
         snprintf(mac_str, RC_BUF_LEFT_SIZE(&env->buff), "%x:%x:%x:%x:%x:%x",
-            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-        env->buff.length += 18; // skip mac
+                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        env->buff.length += 18;  // skip mac
     }
 #endif
 
     rc_hardware_info* hi = (rc_hardware_info*)env->settings.hardware;
     if (hi->mac == NULL) hi->mac = mac_str;
-    if (hi->bsn == NULL) hi->bsn = mac_str;
+    if (hi->bid == NULL) hi->bid = mac_str;
     if (hi->cpu == NULL) hi->cpu = mac_str;
 
     if (env->settings.uuid == NULL) {
@@ -144,9 +173,8 @@ int append_hardware_info(rc_runtime_t* env)
     return 0;
 }
 
-void env_free(rc_runtime_t* env)
-{
-    if (env->timermgr != NULL) { // stop all timer first
+void env_free(rc_runtime_t* env) {
+    if (env->timermgr != NULL) {  // stop all timer first
         rc_timer_manager_stop_world(env->timermgr);
     }
 
@@ -170,6 +198,16 @@ void env_free(rc_runtime_t* env)
         env->properties = NULL;
     }
 
+    if (env->netmgr != NULL) {
+        network_manager_uninit(env->netmgr);
+        env->netmgr = NULL;
+    }
+
+    if (env->ansmgr != NULL) {
+        rc_service_uninit(env->ansmgr);
+        env->ansmgr = NULL;
+    }
+
     if (env->httpmgr != NULL) {
         http_manager_uninit(env->httpmgr);
         env->httpmgr = NULL;
@@ -188,7 +226,6 @@ void env_free(rc_runtime_t* env)
     if (env == _env) {
         _env = NULL;
     }
-    
+
     rc_free(env);
 }
-

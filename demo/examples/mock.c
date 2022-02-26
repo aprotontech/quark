@@ -21,7 +21,9 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret,
     settings.app_id = app_id;
     settings.app_secret = app_secret;
     settings.uuid = NULL;
-    settings.enable_keepalive = 0;
+    settings.enable_keepalive = 1;
+    settings.iot_platform = RC_IOT_QUARK;
+    settings.service_url = "http://192.168.3.24:8080/api";
 
     // init sdk
     RC_EXCEPT_SUCCESS(rc_sdk_init("test", 1, &settings));
@@ -33,7 +35,7 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret,
         rc_sleep(1000);
     }
 
-    RC_EXCEPT_SUCCESS(rc_set_wifi("aprotontech", "aproton.tech_2021"));
+    RC_EXCEPT_SUCCESS(rc_set_wifi("kog_2.4G", "huxiaolong@2018"));
 
     // entry working thread
     for (i = 10; i < test_time_sec; ++i) {

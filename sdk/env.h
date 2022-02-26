@@ -18,30 +18,29 @@
 
 #include "include/quark/quark.h"
 
-#include "rc_device.h"
-#include "rc_http_request.h"
-#include "rc_http_manager.h"
-#include "rc_json.h"
 #include "rc_error.h"
-#include "rc_timer.h"
+#include "rc_device.h"
+#include "rc_ans.h"
+#include "rc_http_manager.h"
+#include "rc_http_request.h"
+#include "rc_json.h"
 #include "rc_mqtt.h"
+#include "rc_network.h"
+#include "rc_timer.h"
 #include "wifi.h"
 
 #define SDK_TAG "[QUARK]"
 #define NOTIFY_TIME_DIFF 60
-#define QUARK_API_URL "http://82.157.138.167:8080"
-
+#define QUARK_API_URL "http://api.aproton.tech"
 
 typedef void* rc_mqtt_client;
 typedef void* protontech;
 typedef void* rc_net_dispatch_mgr_t;
 
 typedef struct _rc_local_config_t {
-    
     char* name;
-    char* ans_url;
+    char* default_service_url;
     int service_count;
-
 } rc_local_config_t;
 
 typedef void* property_manager;
@@ -54,6 +53,9 @@ typedef struct _rc_runtime_t {
     rc_mqtt_client mqtt;
     http_manager httpmgr;
     rc_timer_manager timermgr;
+    rc_network_manager netmgr;
+
+    ans_service ansmgr;
 
     property_manager properties;
 
@@ -74,8 +76,6 @@ typedef struct _rc_runtime_t {
 
 } rc_runtime_t;
 
-
 rc_runtime_t* get_env_instance();
-
 
 #endif

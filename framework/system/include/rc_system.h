@@ -3,6 +3,7 @@
 #ifndef _QUARK_SYSTEM_H_
 #define _QUARK_SYSTEM_H_
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,17 +11,17 @@
 
 #include "os_platform.h"
 
+
 #ifdef __QUARK_RTTHREAD__
 #include "rc_rtos.h"
 #endif
 
 #ifdef __QUARK_LINUX__
 #include <arpa/inet.h>
-#include <ctype.h>
+#include <ifaddrs.h>
 #include <netdb.h>
 #include <pthread.h>
 #include <sys/socket.h>
-
 
 #endif
 

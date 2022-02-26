@@ -24,16 +24,20 @@ typedef void* aidevice;
 typedef struct _rc_hardware_info_t {
     char* cpu;
     char* mac;
-    char* bsn;
+    char* bid;
 } rc_hardware_info;
 
-typedef void (*device_token_change)(aidevice dev, const char* token, int timeout);
+typedef void (*device_token_change)(aidevice dev, const char* token,
+                                    int timeout);
 
-aidevice rc_device_init(http_manager mgr, const char* url, const rc_hardware_info* hardware);
+aidevice rc_device_init(http_manager mgr, const char* url,
+                        const rc_hardware_info* hardware);
 
-int rc_device_enable_auto_refresh(aidevice device, rc_timer_manager mgr, device_token_change callback);
+int rc_device_enable_auto_refresh(aidevice device, rc_timer_manager mgr,
+                                  device_token_change callback);
 
-int rc_device_regist(aidevice device, const char* app_id, const char* uuid, const char* app_secret, int at_once);
+int rc_device_regist(aidevice device, const char* app_id, const char* uuid,
+                     const char* app_secret, int at_once);
 
 int rc_device_refresh_atonce(aidevice device, int async);
 
