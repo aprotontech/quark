@@ -19,6 +19,9 @@
 
 #if defined(__QUARK_FREERTOS__)
 #include "esp_system.h"
+#elif defined(__QUARK_LINUX__)
+#include <sys/ioctl.h>
+#include <net/if.h>
 #endif
 
 #define ENV_BUFF_SIZE 64
@@ -148,6 +151,7 @@ int append_hardware_info(rc_runtime_t* env) {
         env->settings.hardware = rc_malloc(sizeof(rc_hardware_info));
         memset(env->settings.hardware, 0, sizeof(rc_hardware_info));
     }
+	    LOGI(SDK_TAG, "%d", __LINE__);
 
     // get mac address
     char* mac_str = rc_buf_tail_ptr(&env->buff);
@@ -157,7 +161,44 @@ int append_hardware_info(rc_runtime_t* env) {
         esp_read_mac(mac, ESP_MAC_WIFI_STA);
         snprintf(mac_str, RC_BUF_LEFT_SIZE(&env->buff), "%x:%x:%x:%x:%x:%x",
                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-        env->buff.length += 18;  // skip mac
+        env->buff.length += 20;  // skip mac
+    }
+#elif defined(__QUARK_LINUX__)
+    {
+	    int fd, interface;
+	    struct ifreq buf[3];
+	    struct ifconf ifc;
+	 
+	    LOGI(SDK_TAG, "%d", __LINE__);
+	    if((fd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0)
+	    {
+		int i = 0;
+		ifc.ifc_len = sizeof(buf);
+		ifc.ifc_buf = (caddr_t)buf;
+		if (!ioctl(fd, SIOCGIFCONF, (char *)&ifc))
+		{
+		    interface = ifc.ifc_len / sizeof(struct ifreq);
+		    while (i < interface)
+		    {
+			if (!(ioctl(fd, SIOCGIFHWADDR, (char *)&buf[i])))
+			{
+			    snprintf(mac_str, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
+				(unsigned char)buf[i].ifr_hwaddr.sa_data[0],
+				(unsigned char)buf[i].ifr_hwaddr.sa_data[1],
+				(unsigned char)buf[i].ifr_hwaddr.sa_data[2],
+				(unsigned char)buf[i].ifr_hwaddr.sa_data[3],
+				(unsigned char)buf[i].ifr_hwaddr.sa_data[4],
+				(unsigned char)buf[i].ifr_hwaddr.sa_data[5]);
+			    if (strcmp(mac_str, "00:00:00:00:00:00") != 0) {
+        env->buff.length += 20;  // skip mac
+		LOGI(SDK_TAG, "mac=%s", mac_str);
+				break;
+			    }
+			}
+			i++;
+		    }
+		}
+	    }
     }
 #endif
 

@@ -593,7 +593,7 @@ int on_body_cb(http_parser* p, const char* at, size_t len) {
             rc_buf_t* buf = rc_buf_init(len);
             if (buf == NULL) {
                 LOGW(RC_TAG, "request(%p) malloc buffer(%d) failed", request,
-                     len);
+                     (int)len);
             } else {
                 LL_insert(&buf->link, request->res_body.prev);
                 memcpy(rc_buf_head_ptr(buf), at, len);
