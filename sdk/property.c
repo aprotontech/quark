@@ -75,7 +75,8 @@ int rc_property_value_check(int type, void* value, rc_property_t* ppty) {
             r = 1;
         }
         break;
-    default: break;
+    default:
+        break;
     }
 
     return r;
@@ -231,7 +232,7 @@ int on_property_timer(rc_timer timer, void* usr_data) {
 
     if (rc_get_client_id() == NULL || rc_get_session_token() == NULL) {
         // client or session is empty, device is not registed, so retry later
-        LOGI(SDK_TAG, "device is not registed, so skip report attr");
+        LOGD(SDK_TAG, "device is not registed, so skip report attr");
         rc_timer_ahead_once(mgr->property_timer, 1000);
         return 0;
     }
@@ -240,12 +241,12 @@ int on_property_timer(rc_timer timer, void* usr_data) {
         rc_mutex_lock(mgr->mgr_mutex);
         GETTIMESTAMP(now);
         BEGIN_JSON_OBJECT(root)
-        JSON_OBJECT_ADD_STRING(root, clientId, rc_get_client_id())
-        JSON_OBJECT_ADD_OBJECT(root, attrs)
-        hashmap_iterate(mgr->values, find_change_item, JSON(attrs));
-        END_JSON_OBJECT_ITEM(attrs)
-        JSON_OBJECT_ADD_NUMBER(root, timestamp, now);
-        str = JSON_TO_STRING(root);
+            JSON_OBJECT_ADD_STRING(root, clientId, rc_get_client_id())
+            JSON_OBJECT_ADD_OBJECT(root, attrs)
+            hashmap_iterate(mgr->values, find_change_item, JSON(attrs));
+            END_JSON_OBJECT_ITEM(attrs)
+            JSON_OBJECT_ADD_NUMBER(root, timestamp, now);
+            str = JSON_TO_STRING(root);
         END_JSON_OBJECT(root);
         rc_mutex_unlock(mgr->mgr_mutex);
         LOGI(PROPERTY_TAG, "ppty json string %s", str);
@@ -296,7 +297,8 @@ int find_change_item(any_t attrs, const char* key, any_t value) {
         cJSON_AddItemToObject((cJSON*)attrs, ppty->name,
                               cJSON_CreateNumber(ppty->bool_value));
         break;
-    default: break;
+    default:
+        break;
     }
 
     return 0;
@@ -334,56 +336,59 @@ int on_remote_set_property(const char* key, cJSON* JSON(data),
 
     rc_mutex_lock(mgr->mgr_mutex);
     JSON_ARRAY_FOREACH(data, itm)
-    if (JSON(itm)->string != NULL &&
-        hashmap_get(mgr->values, JSON(itm)->string, &propertydis) == MAP_OK &&
-        propertydis != NULL) {
-        ppty = (rc_property_t*)propertydis;
-        if (ppty->callback != NULL) {
-            switch (ppty->type) {
-            case RC_PROPERTY_INT_VALUE:
-            case RC_PROPERTY_DOUBLE_VALUE:
-                if (JSON(itm)->type != cJSON_Number) {
-                    LOGI(PROPERTY_TAG,
-                         "key(%s), server push type is not match local "
-                         "define(int)",
-                         ppty->name);
-                    continue;
+        if (JSON(itm)->string != NULL &&
+            hashmap_get(mgr->values, JSON(itm)->string, &propertydis) ==
+                MAP_OK &&
+            propertydis != NULL) {
+            ppty = (rc_property_t*)propertydis;
+            if (ppty->callback != NULL) {
+                switch (ppty->type) {
+                case RC_PROPERTY_INT_VALUE:
+                case RC_PROPERTY_DOUBLE_VALUE:
+                    if (JSON(itm)->type != cJSON_Number) {
+                        LOGI(PROPERTY_TAG,
+                             "key(%s), server push type is not match local "
+                             "define(int)",
+                             ppty->name);
+                        continue;
+                    }
+                    rc_mutex_unlock(mgr->mgr_mutex);
+                    ppty->callback(ppty->name, ppty->type,
+                                   ppty->type == RC_PROPERTY_INT_VALUE
+                                       ? (void*)&JSON(itm)->valueint
+                                       : (void*)&JSON(itm)->valuedouble);
+                    rc_mutex_lock(mgr->mgr_mutex);
+                    break;
+                case RC_PROPERTY_BOOL_VALUE:
+                    if (JSON(itm)->type != cJSON_True &&
+                        JSON(itm)->type != cJSON_False) {
+                        LOGI(PROPERTY_TAG,
+                             "key(%s), server push type is not match local "
+                             "define(bool)",
+                             ppty->name);
+                        continue;
+                    }
+                    rc_mutex_unlock(mgr->mgr_mutex);
+                    ppty->callback(ppty->name, ppty->type,
+                                   &JSON(itm)->valueint);
+                    rc_mutex_lock(mgr->mgr_mutex);
+                    break;
+                case RC_PROPERTY_STRING_VALUE:
+                    if (JSON(itm)->type != cJSON_String) {
+                        LOGI(PROPERTY_TAG,
+                             "key(%s), server push type is not match local "
+                             "define(string)",
+                             ppty->name);
+                        continue;
+                    }
+                    rc_mutex_unlock(mgr->mgr_mutex);
+                    ppty->callback(ppty->name, ppty->type,
+                                   &JSON(itm)->valuestring);
+                    rc_mutex_lock(mgr->mgr_mutex);
+                    break;
                 }
-                rc_mutex_unlock(mgr->mgr_mutex);
-                ppty->callback(ppty->name, ppty->type,
-                               ppty->type == RC_PROPERTY_INT_VALUE
-                                   ? (void*)&JSON(itm)->valueint
-                                   : (void*)&JSON(itm)->valuedouble);
-                rc_mutex_lock(mgr->mgr_mutex);
-                break;
-            case RC_PROPERTY_BOOL_VALUE:
-                if (JSON(itm)->type != cJSON_True &&
-                    JSON(itm)->type != cJSON_False) {
-                    LOGI(PROPERTY_TAG,
-                         "key(%s), server push type is not match local "
-                         "define(bool)",
-                         ppty->name);
-                    continue;
-                }
-                rc_mutex_unlock(mgr->mgr_mutex);
-                ppty->callback(ppty->name, ppty->type, &JSON(itm)->valueint);
-                rc_mutex_lock(mgr->mgr_mutex);
-                break;
-            case RC_PROPERTY_STRING_VALUE:
-                if (JSON(itm)->type != cJSON_String) {
-                    LOGI(PROPERTY_TAG,
-                         "key(%s), server push type is not match local "
-                         "define(string)",
-                         ppty->name);
-                    continue;
-                }
-                rc_mutex_unlock(mgr->mgr_mutex);
-                ppty->callback(ppty->name, ppty->type, &JSON(itm)->valuestring);
-                rc_mutex_lock(mgr->mgr_mutex);
-                break;
             }
         }
-    }
     JSON_ARRAY_END_FOREACH(data, itm)
     rc_mutex_unlock(mgr->mgr_mutex);
     return 0;
@@ -399,68 +404,72 @@ int parse_attrs_get_result(rc_property_manager* mgr, cJSON* paramresult,
     rc_property_t* ppty = NULL;
 
     BEGIN_MAPPING_JSON(paramresult, root)
-    QUARK_API_RESPONSE_BEGIN(root, apirc);
-    JSON_OBJECT_EXTRACT_OBJECT_BEGIN(root, attrs);
-    JSON_ARRAY_FOREACH(names, key)
-    json = NULL;
-    key = JSON(key)->valuestring;
-    if (hashmap_get(mgr->values, key, &propertydis) != MAP_OK ||
-        propertydis != NULL) {
-        LOGE(PROPERTY_TAG, "key(%s) is not defined, must not reach here", key);
-        return -1;
-    }
+        QUARK_API_RESPONSE_BEGIN(root, apirc);
+        JSON_OBJECT_EXTRACT_OBJECT_BEGIN(root, attrs);
+        JSON_ARRAY_FOREACH(names, key)
+            json = NULL;
+            key = JSON(key)->valuestring;
+            if (hashmap_get(mgr->values, key, &propertydis) != MAP_OK ||
+                propertydis != NULL) {
+                LOGE(PROPERTY_TAG,
+                     "key(%s) is not defined, must not reach here", key);
+                return -1;
+            }
 
-    ppty = (rc_property_t*)propertydis;
-    json = cJSON_GetObjectItem(JSON(attrs), key);
+            ppty = (rc_property_t*)propertydis;
+            json = cJSON_GetObjectItem(JSON(attrs), key);
 
-    if (json == NULL) {
-        LOGI(PROPERTY_TAG, "The key(%s) not found in server", key);
-        return -1;
-    }
+            if (json == NULL) {
+                LOGI(PROPERTY_TAG, "The key(%s) not found in server", key);
+                return -1;
+            }
 
-    switch (ppty->type) {
-    case RC_PROPERTY_INT_VALUE:
-        if (json->type != cJSON_Number) {
-            LOGI(PROPERTY_TAG,
-                 "key(%s), server result type is not match local define(int)",
-                 key);
-            return -1;
-        }
-        *(va_arg(ap, int*)) = json->valueint;
-        break;
-    case RC_PROPERTY_STRING_VALUE:
-        if (json->type != cJSON_String) {
-            LOGI(
-                PROPERTY_TAG,
-                "key(%s), server result type is not match local define(string)",
-                key);
-            return -1;
-        }
-        *(va_arg(ap, char**)) = rc_copy_string(json->valuestring);
-        break;
-    case RC_PROPERTY_DOUBLE_VALUE:
-        if (json->type != cJSON_Number) {
-            LOGI(
-                PROPERTY_TAG,
-                "key(%s), server result type is not match local define(double)",
-                key);
-            return -1;
-        }
-        *(va_arg(ap, double*)) = json->valuedouble;
-        break;
-    case RC_PROPERTY_BOOL_VALUE:
-        if (json->type != cJSON_True && json->type != cJSON_False) {
-            LOGI(PROPERTY_TAG,
-                 "key(%s), server result type is not match local define(bool)",
-                 key);
-            return -1;
-        }
-        *(va_arg(ap, int*)) = json->valueint;
-        break;
-    default: break;
-    }
-    JSON_ARRAY_END_FOREACH(names, key);
-    QUARK_API_RESPONSE_END(root)
+            switch (ppty->type) {
+            case RC_PROPERTY_INT_VALUE:
+                if (json->type != cJSON_Number) {
+                    LOGI(PROPERTY_TAG,
+                         "key(%s), server result type is not match local "
+                         "define(int)",
+                         key);
+                    return -1;
+                }
+                *(va_arg(ap, int*)) = json->valueint;
+                break;
+            case RC_PROPERTY_STRING_VALUE:
+                if (json->type != cJSON_String) {
+                    LOGI(PROPERTY_TAG,
+                         "key(%s), server result type is not match local "
+                         "define(string)",
+                         key);
+                    return -1;
+                }
+                *(va_arg(ap, char**)) = rc_copy_string(json->valuestring);
+                break;
+            case RC_PROPERTY_DOUBLE_VALUE:
+                if (json->type != cJSON_Number) {
+                    LOGI(PROPERTY_TAG,
+                         "key(%s), server result type is not match local "
+                         "define(double)",
+                         key);
+                    return -1;
+                }
+                *(va_arg(ap, double*)) = json->valuedouble;
+                break;
+            case RC_PROPERTY_BOOL_VALUE:
+                if (json->type != cJSON_True && json->type != cJSON_False) {
+                    LOGI(PROPERTY_TAG,
+                         "key(%s), server result type is not match local "
+                         "define(bool)",
+                         key);
+                    return -1;
+                }
+                *(va_arg(ap, int*)) = json->valueint;
+                break;
+            default:
+                break;
+            }
+        JSON_ARRAY_END_FOREACH(names, key);
+        QUARK_API_RESPONSE_END(root)
     END_MAPPING_JSON(root);
 
     return 0;
@@ -583,9 +592,9 @@ char* format_query_post(rc_property_manager* mgr, const char* keys,
         return NULL;
     }
     BEGIN_JSON_OBJECT(root)
-    JSON_OBJECT_ADD_ITEM(root, attrs, arr);
-    sendstr = JSON_TO_STRING(root);
-    cJSON_DetachItemFromObject(JSON(root), "attrs");
+        JSON_OBJECT_ADD_ITEM(root, attrs, arr);
+        sendstr = JSON_TO_STRING(root);
+        cJSON_DetachItemFromObject(JSON(root), "attrs");
     END_JSON_OBJECT(root);
 
     *names = arr;  // use it later

@@ -263,7 +263,7 @@ int rc_timer_ahead_once(rc_timer timer, int tick) {
 
     rc_mutex_lock(manager->mobject);
     if (manager->heap[tm->idx] == tm) {
-        LOGI(TM_TAG, "ahead timer[%d](%p) once tick(%dms)", tm->idx,
+        LOGD(TM_TAG, "ahead timer[%d](%p) once tick(%dms)", tm->idx,
              tm->callback, tick);
 
         gettimeofday(&tmp.next_tick, NULL);

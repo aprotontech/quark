@@ -43,7 +43,7 @@ mqtt_client rc_mqtt_create(const char* host, int port, const char* app_id,
 
     LOGI(MQ_TAG,
          "mqtt client remote(%s), app_id(%s), client_id(%s), username(%s)",
-         addr, app_id, client_id, username);
+         addr, app_id, client_id, username != NULL ? username : "null");
 
     if (callback == NULL) {
         LOGI(MQ_TAG, "session callback is null");
@@ -146,14 +146,14 @@ int do_rpc_callback(rc_mqtt_client* mqtt, mqtt_rpc_event_callback callback,
     ret = callback(mqtt, body, strlen(body), &response);
     snprintf(str_rc, sizeof(str_rc) - 1, "%d", ret);
     BEGIN_JSON_OBJECT(body)
-    JSON_OBJECT_ADD_STRING(body, i, msgId);
-    JSON_OBJECT_ADD_OBJECT(body, c)
-    JSON_OBJECT_ADD_STRING(c, rc, str_rc);
-    if (ret == RC_SUCCESS && rc_buf_head_ptr(&response) != NULL) {
-        JSON_OBJECT_ADD_STRING(c, body, rc_buf_head_ptr(&response));
-    }
-    END_JSON_OBJECT_ITEM(c)
-    output = JSON_TO_STRING(body);
+        JSON_OBJECT_ADD_STRING(body, i, msgId);
+        JSON_OBJECT_ADD_OBJECT(body, c)
+        JSON_OBJECT_ADD_STRING(c, rc, str_rc);
+        if (ret == RC_SUCCESS && rc_buf_head_ptr(&response) != NULL) {
+            JSON_OBJECT_ADD_STRING(c, body, rc_buf_head_ptr(&response));
+        }
+        END_JSON_OBJECT_ITEM(c)
+        output = JSON_TO_STRING(body);
     END_JSON_OBJECT(body);
 #ifdef __QUARK_RTTHREAD__
     ret = MQTTClient_publish(mqtt->client, acktopic, strlen(output), output,
@@ -178,9 +178,9 @@ int do_rpc_callback(rc_mqtt_client* mqtt, mqtt_rpc_event_callback callback,
 
 int parse_rpc_msg(cJSON* input, char** msgId, char** acktopic, char** body) {
     BEGIN_MAPPING_JSON(input, root)
-    JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, i, *msgId)
-    JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, a, *acktopic)
-    JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, c, *body)
+        JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, i, *msgId)
+        JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, a, *acktopic)
+        JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, c, *body)
     END_MAPPING_JSON(root);
     return 0;
 }
