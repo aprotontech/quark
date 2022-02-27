@@ -64,8 +64,8 @@
 
 typedef struct _mqtt_subscribe_t {
     void* callback;
-    short error; // 1-error to subscribe, 0-success
-    short type; // 0-normal, 1-rpc, 2-ack
+    short error;  // 1-error to subscribe, 0-success
+    short type;   // 0-normal, 1-rpc, 2-ack
     char topic[4];
 } mqtt_subscribe_t;
 
@@ -77,6 +77,7 @@ typedef struct _rc_mqtt_client_t {
 
     int connectResult;
 
+    char* app_id;
     char* client_id;
     char* user_name;
     char* passwd;
