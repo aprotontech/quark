@@ -90,12 +90,6 @@ int mqtt_client_init(rc_runtime_t* env, const char* app_id,
     // MQTT
     rc_settings_t* settings = &env->settings;
 
-    env->net_dispatch = net_dispatch_init();
-    if (env->net_dispatch == NULL) {
-        LOGI(SDK_TAG, "sdk init failed, net dispatch init failed");
-        return RC_ERROR_SDK_INIT;
-    }
-
     char host[64] = {0};
     int port = 1883;
     int rc = get_mqtt_host_port(env, "mqtt", host, sizeof(host), &port);

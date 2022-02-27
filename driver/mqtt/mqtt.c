@@ -45,7 +45,7 @@ mqtt_client rc_mqtt_create(const char* host, int port, const char* app_id,
 
     LOGI(MQ_TAG,
          "mqtt client remote(%s), app_id(%s), client_id(%s), username(%s)",
-         addr, app_id, client_id, username);
+         addr, app_id, client_id, username != NULL ? username : "null");
 
     if (callback == NULL) {
         LOGI(MQ_TAG, "session callback is null");

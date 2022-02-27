@@ -33,7 +33,6 @@ void env_free(rc_runtime_t* env);
 int sync_server_time(rc_timer timer, void* dev);
 int rc_enable_ntp_sync_time();
 int device_regist(rc_runtime_t* env);
-int net_dispatch_uninit(rc_net_dispatch_mgr_t dismgr);
 int append_hardware_info(rc_runtime_t* env);
 
 int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status);
@@ -151,7 +150,6 @@ int append_hardware_info(rc_runtime_t* env) {
         env->settings.hardware = rc_malloc(sizeof(rc_hardware_info));
         memset(env->settings.hardware, 0, sizeof(rc_hardware_info));
     }
-	    LOGI(SDK_TAG, "%d", __LINE__);
 
     // get mac address
     char* mac_str = rc_buf_tail_ptr(&env->buff);
@@ -165,40 +163,35 @@ int append_hardware_info(rc_runtime_t* env) {
     }
 #elif defined(__QUARK_LINUX__)
     {
-	    int fd, interface;
-	    struct ifreq buf[3];
-	    struct ifconf ifc;
-	 
-	    LOGI(SDK_TAG, "%d", __LINE__);
-	    if((fd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0)
-	    {
-		int i = 0;
-		ifc.ifc_len = sizeof(buf);
-		ifc.ifc_buf = (caddr_t)buf;
-		if (!ioctl(fd, SIOCGIFCONF, (char *)&ifc))
-		{
-		    interface = ifc.ifc_len / sizeof(struct ifreq);
-		    while (i < interface)
-		    {
-			if (!(ioctl(fd, SIOCGIFHWADDR, (char *)&buf[i])))
-			{
-			    snprintf(mac_str, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
-				(unsigned char)buf[i].ifr_hwaddr.sa_data[0],
-				(unsigned char)buf[i].ifr_hwaddr.sa_data[1],
-				(unsigned char)buf[i].ifr_hwaddr.sa_data[2],
-				(unsigned char)buf[i].ifr_hwaddr.sa_data[3],
-				(unsigned char)buf[i].ifr_hwaddr.sa_data[4],
-				(unsigned char)buf[i].ifr_hwaddr.sa_data[5]);
-			    if (strcmp(mac_str, "00:00:00:00:00:00") != 0) {
-        env->buff.length += 20;  // skip mac
-		LOGI(SDK_TAG, "mac=%s", mac_str);
-				break;
-			    }
-			}
-			i++;
-		    }
-		}
-	    }
+        int fd, interface;
+        struct ifreq buf[3];
+        struct ifconf ifc;
+
+        if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
+            int i = 0;
+            ifc.ifc_len = sizeof(buf);
+            ifc.ifc_buf = (caddr_t)buf;
+            if (!ioctl(fd, SIOCGIFCONF, (char*)&ifc)) {
+                interface = ifc.ifc_len / sizeof(struct ifreq);
+                while (i < interface) {
+                    if (!(ioctl(fd, SIOCGIFHWADDR, (char*)&buf[i]))) {
+                        snprintf(mac_str, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
+                                 (unsigned char)buf[i].ifr_hwaddr.sa_data[0],
+                                 (unsigned char)buf[i].ifr_hwaddr.sa_data[1],
+                                 (unsigned char)buf[i].ifr_hwaddr.sa_data[2],
+                                 (unsigned char)buf[i].ifr_hwaddr.sa_data[3],
+                                 (unsigned char)buf[i].ifr_hwaddr.sa_data[4],
+                                 (unsigned char)buf[i].ifr_hwaddr.sa_data[5]);
+                        if (strcmp(mac_str, "00:00:00:00:00:00") != 0) {
+                            env->buff.length += 20;  // skip mac
+                            LOGI(SDK_TAG, "mac=%s", mac_str);
+                            break;
+                        }
+                    }
+                    i++;
+                }
+            }
+        }
     }
 #endif
 
@@ -217,11 +210,6 @@ int append_hardware_info(rc_runtime_t* env) {
 void env_free(rc_runtime_t* env) {
     if (env->timermgr != NULL) {  // stop all timer first
         rc_timer_manager_stop_world(env->timermgr);
-    }
-
-    if (env->net_dispatch != NULL) {
-        net_dispatch_uninit(env->net_dispatch);
-        env->net_dispatch = NULL;
     }
 
     if (env->mqtt != NULL) {
