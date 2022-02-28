@@ -28,11 +28,6 @@ typedef int (*rc_push_callback)(const char* message, int len,
                                 rc_buf_t* response);
 typedef int (*rc_instant_callback)(const char* message, int len);
 
-typedef struct cJSON cJSON;
-typedef int (*rc_netcmd_dispatch_callback)(const char* key, cJSON* data);
-typedef int (*rc_netrpc_dispatch_callback)(const char* key, cJSON* data,
-                                           rc_buf_t* response);
-
 typedef int (*rc_sync_time_callback)(int sec, int usec);
 
 typedef int (*rc_property_change)(const char* name, int type, void* value);

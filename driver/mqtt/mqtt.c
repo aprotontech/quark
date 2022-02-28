@@ -70,6 +70,8 @@ mqtt_client rc_mqtt_create(const char* host, int port, const char* app_id,
     mqtt->buff.length = MQTT_TOPIC_PREFIX_LENGTH;
 
     // append client id
+    mqtt->app_id = rc_buf_tail_ptr(&mqtt->buff);
+    rc_buf_append(&mqtt->buff, app_id, strlen(app_id) + 1);
     mqtt->client_id = rc_buf_tail_ptr(&mqtt->buff);
     rc_buf_append(&mqtt->buff, client_id, strlen(client_id) + 1);
 

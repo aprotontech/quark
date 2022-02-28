@@ -23,7 +23,6 @@
 #include "rc_mqtt.h"
 #include "rc_mutex.h"
 
-int regist_net_dispatch(int type, const char* key, void* callback);
 const char* env_sdk_device_token(const char* client_id);
 int get_mqtt_host_port(rc_runtime_t* env, const char* service, char* ip,
                        int len, int* port);
@@ -36,14 +35,6 @@ int rc_net_publish(const char* topic, const char* message, int len) {
     }
 
     return RC_ERROR_MQTT_PUBLISH;
-}
-
-int rc_regist_netcmd(const char* key, rc_netcmd_dispatch_callback callback) {
-    return regist_net_dispatch(0, key, callback);
-}
-
-int rc_regist_netrpc(const char* key, rc_netrpc_dispatch_callback callback) {
-    return regist_net_dispatch(1, key, callback);
 }
 
 int kl_json_decode_message_kv(cJSON* input, char** key, cJSON** data) {
