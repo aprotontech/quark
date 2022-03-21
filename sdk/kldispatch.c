@@ -267,8 +267,7 @@ int mqtt_client_init(rc_runtime_t* env, const char* app_id,
         return RC_ERROR_SDK_INIT;
     }
 
-    rc = rc_mqtt_enable_auto_connect(env->mqtt, env->timermgr,
-                                     sdk_mqtt_status_callback, 1);
+    rc = rc_mqtt_start(env->mqtt, sdk_mqtt_status_callback);
     if (rc != 0) {
         LOGI(SDK_TAG,
              "sdk init failed, mqtt client enable auto connect failed");
