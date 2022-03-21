@@ -11,7 +11,6 @@
 
 #include "os_platform.h"
 
-
 #ifdef __QUARK_RTTHREAD__
 #include "rc_rtos.h"
 #endif
