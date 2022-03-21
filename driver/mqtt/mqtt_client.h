@@ -76,6 +76,7 @@ typedef struct _rc_mqtt_client_t {
     short is_connected;
     short is_exit;
 
+    char* app_id;
     char* client_id;
     char* user_name;
     char* passwd;
@@ -102,5 +103,7 @@ typedef struct _rc_mqtt_client_t {
     rc_buf_t buff;
     char pad[MQTT_CLIENT_PAD_SIZE];
 } rc_mqtt_client;
+
+void publish_callback(void** unused, struct mqtt_response_publish* published);
 
 #endif

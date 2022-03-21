@@ -27,9 +27,11 @@ enum {
 typedef void* mqtt_client;
 typedef int (*mqtt_connect_callback)(mqtt_client client, int status,
                                      const char* cause);
-typedef int (*mqtt_subscribe_callback)(mqtt_client client, const char* message,
+typedef int (*mqtt_subscribe_callback)(mqtt_client client, const char* from,
+                                       const char* type, const char* message,
                                        int message_length);
-typedef int (*mqtt_rpc_event_callback)(mqtt_client client, const char* message,
+typedef int (*mqtt_rpc_event_callback)(mqtt_client client, const char* from,
+                                       const char* type, const char* message,
                                        int message_length, rc_buf_t* response);
 
 typedef const char* (*mqtt_session_token_callback)(const char* client_id);
