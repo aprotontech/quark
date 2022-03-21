@@ -28,11 +28,6 @@ typedef int (*rc_push_callback)(const char* message, int len,
                                 rc_buf_t* response);
 typedef int (*rc_instant_callback)(const char* message, int len);
 
-typedef struct cJSON cJSON;
-typedef int (*rc_netcmd_dispatch_callback)(const char* key, cJSON* data);
-typedef int (*rc_netrpc_dispatch_callback)(const char* key, cJSON* data,
-                                           rc_buf_t* response);
-
 typedef int (*rc_sync_time_callback)(int sec, int usec);
 
 typedef int (*rc_property_change)(const char* name, int type, void* value);
@@ -64,11 +59,15 @@ typedef struct _rc_settings_t {
     char* production;
     rc_hardware_t* hardware;
 
+    // keepalive(mqtt) status changed
     rc_kl_status_change kl_change;
+    // device session changed
     rc_session_change session_chanage;
+    // recv push message
     rc_push_callback push_callback;
+    // recv instant message
     rc_instant_callback instant_callback;
-
+    // wifi status changed
     rc_wifi_status_callback wifi_status_callback;
 
     //    rc_sync_time_callback time_update;

@@ -33,7 +33,6 @@ void env_free(rc_runtime_t* env);
 int sync_server_time(rc_timer timer, void* dev);
 int rc_enable_ntp_sync_time();
 int device_regist(rc_runtime_t* env);
-int net_dispatch_uninit(rc_net_dispatch_mgr_t dismgr);
 int append_hardware_info(rc_runtime_t* env);
 
 int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status);
@@ -211,11 +210,6 @@ int append_hardware_info(rc_runtime_t* env) {
 void env_free(rc_runtime_t* env) {
     if (env->timermgr != NULL) {  // stop all timer first
         rc_timer_manager_stop_world(env->timermgr);
-    }
-
-    if (env->net_dispatch != NULL) {
-        net_dispatch_uninit(env->net_dispatch);
-        env->net_dispatch = NULL;
     }
 
     if (env->mqtt != NULL) {

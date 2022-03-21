@@ -2,6 +2,7 @@ framework/openssl/
 framework/opus/
 framework/speex/
 framework/paho/
+framework/*.tar.gz
 */*/cmake_install.cmake
 */*/CMakeFiles/
 */*/Makefile

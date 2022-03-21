@@ -35,7 +35,6 @@
 
 typedef void* rc_mqtt_client;
 typedef void* protontech;
-typedef void* rc_net_dispatch_mgr_t;
 
 typedef struct _rc_local_config_t {
     char* name;
@@ -65,7 +64,6 @@ typedef struct _rc_runtime_t {
     rc_kl_status_change kl_change;
     rc_push_callback push_callback;
     rc_instant_callback instant_callback;
-    rc_net_dispatch_mgr_t net_dispatch;
 
     // sync time with server
     rc_timer sync_timer;
