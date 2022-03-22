@@ -17,15 +17,41 @@
 #include "logs.h"
 #include "rc_http_request.h"
 
+#define API_URL_LENGTH 120
+
 char* newReqId(char buf[]);
 int need_refresh_token(const char* body);
 
+int _get_http_service_url(rc_runtime_t* env, char url[API_URL_LENGTH],
+                          char ip[20], const char* service_name,
+                          const char* path) {
+    rc_service_protocol_info_t info;
+
+    if (rc_service_query(env->ansmgr, service_name, "http", &info) == 0) {
+        strcat(url, info.host);
+        if (info.port != 80) {
+            snprintf(url, API_URL_LENGTH, "http://%s:%d%s%s", info.host,
+                     info.port, info.prefix, path);
+        } else {
+            snprintf(url, API_URL_LENGTH, "http://%s%s%s", info.host,
+                     info.prefix, path);
+        }
+
+        strcpy(ip, info.ip);
+
+        return 0;
+    }
+
+    return -1;
+}
+
 int rc_http_quark_post(const char* service_name, const char* path,
                        const char* body, int timeout, rc_buf_t* response) {
-    int rc;
+    int rc, offset;
     char reqId[17] = {0};
     char header[60] = {0};
-    char url[120] = {0};
+    char url[API_URL_LENGTH] = {0};
+    char ip[20] = {0};
     char const* p[1] = {header};
 
     rc_runtime_t* env = get_env_instance();
@@ -34,14 +60,20 @@ int rc_http_quark_post(const char* service_name, const char* path,
         return RC_ERROR_SDK_INIT;
     }
 
+    if (_get_http_service_url(env, url, ip, service_name, path) != 0) {
+        LOGW(SDK_TAG, "query service(%s) info failed", service_name);
+        return -1;
+    }
+
     snprintf(header, sizeof(header), "IOT-DEVICE-SESSION: %s",
              get_device_session_token(env->device));
-    snprintf(url, sizeof(url), "%s%s%csdkVersion=%s&reqId=%s",
-             env->local.default_service_url, path,
+
+    offset = strlen(url);
+    snprintf(&url[offset], sizeof(url) - offset, "%csdkVersion=%s&reqId=%s",
              strchr(path, '?') != NULL ? '&' : '?', rc_sdk_version(),
              newReqId(reqId));
 
-    LOGI("SDK_TAG", "http request body(%s)", body);
+    LOGI(SDK_TAG, "http request body(%s)", body);
     rc = http_post(env->httpmgr, url, NULL, p, 1, body, strlen(body), timeout,
                    response);
     if (rc == 200) {
@@ -123,7 +155,7 @@ char* newReqId(char buf[]) {
 
 int get_rcode(cJSON* input, char** str_rc) {
     BEGIN_MAPPING_JSON(input, root)
-    JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, rc, *str_rc)
+        JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, rc, *str_rc)
     END_MAPPING_JSON(str_rc)
     return RC_SUCCESS;
 }
@@ -131,7 +163,7 @@ int get_rcode(cJSON* input, char** str_rc) {
 int need_refresh_token(const char* body) {
     char* errors[] = {"1414", "1415"};
     int n = sizeof(errors) / sizeof(char*);
-    int i;
+    int i, rc;
     int maybe = 0, refresh = 0;
     for (i = 0; i < n; ++i) {
         if (strstr(body, errors[i]) != NULL) {
@@ -140,20 +172,20 @@ int need_refresh_token(const char* body) {
         }
     }
 
-    if (maybe) {
-        char* str_rc = NULL;
+    if (!maybe) {
+        return;
+    }
 
-        BEGIN_EXTRACT_JSON(body, root)
-        if (get_rcode(JSON(root), &str_rc) == RC_SUCCESS) {
-            for (i = 0; i < n; ++i) {
-                if (strcmp(str_rc, errors[i]) == 0) {
-                    refresh = 1;
-                    break;
-                }
+    BEGIN_EXTRACT_JSON(body, root)
+        JSON_OBJECT_EXTRACT_INT_TO_VALUE(root, rc, rc)
+
+        for (i = 0; i < n; ++i) {
+            if (rc == atoi(errors[i])) {
+                refresh = 1;
+                break;
             }
         }
-        END_EXTRACT_JSON(root)
-    }
+    END_EXTRACT_JSON(root)
 
     return refresh;
 }
