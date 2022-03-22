@@ -120,12 +120,6 @@ ADD_SUBDIRECTORY(framework/logs)
 ADD_SUBDIRECTORY(framework/common)
 ADD_SUBDIRECTORY(framework/system)
 
-IF(QUARK_SYSTEM EQUAL 1)
-    ADD_SUBDIRECTORY(framework/paho)
-ELSEIF(QUARK_SYSTEM EQUAL 2)
-    ADD_SUBDIRECTORY(third/paho.mqtt.embedded-c)
-ENDIF()
-
 ADD_SUBDIRECTORY(driver/wifi)
 ADD_SUBDIRECTORY(driver/network)
 ADD_SUBDIRECTORY(driver/http)

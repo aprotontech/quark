@@ -12,7 +12,7 @@
  */
 
 #include "logs.h"
-#include "mqtt_adaptor.h"
+#include "mqtt_client.h"
 #include "rc_json.h"
 #include "rc_mqtt.h"
 
@@ -63,6 +63,7 @@ static int _mqtt_subscribe(mqtt_client client, const char* topic,
         sub->callback = callback;
         strcpy(sub->topic, topic);
         ret = hashmap_put(mqtt->sub_map, sub->topic, sub);
+        mqtt->has_sub_failed = 1;
         rc_mutex_unlock(mqtt->mobject);
 
         if (ret != MAP_OK) {
@@ -95,7 +96,6 @@ int rc_mqtt_rpc_subscribe(mqtt_client client, const char* topic,
 int rc_mqtt_publish(mqtt_client client, const char* topic, const char* body,
                     int len) {
     int ret;
-    MQTTClient_deliveryToken token;
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
     if (is_topic_match(topic, mqtt->topic_prefix, MQTT_TOPIC_EVT) == 0 &&
         is_topic_match(topic, mqtt->topic_prefix, MQTT_TOPIC_CMD) == 0) {
@@ -104,11 +104,11 @@ int rc_mqtt_publish(mqtt_client client, const char* topic, const char* body,
         return RC_ERROR_MQTT_PUBLISH;
     }
 
-    ret = MQTTClient_publish(mqtt->client, (char*)topic, len, (char*)body,
-                             MQTT_CMD_QOS, 0, &token);
+    ret = mqtt_publish(&mqtt->client, (char*)topic, (char*)body, len,
+                       INT_QOS_TO_ENUM(MQTT_CMD_QOS));
 
-    LOGI(MQ_TAG, "mqtt(%p) publish(%s), content-length(%d), ret(%d), token(%d)",
-         mqtt, topic, len, ret, token)
+    LOGI(MQ_TAG, "mqtt(%p) publish(%s), content-length(%d), ret(%d)", mqtt,
+         topic, len, ret)
     return ret == 0 ? RC_SUCCESS : RC_ERROR_MQTT_PUBLISH;
 }
 
@@ -163,7 +163,6 @@ int on_rpc_message(rc_mqtt_client* mqtt, const char* topic,
     char msgid[MSGID_LENGTH] = {0};
     char acktopic[100] = {0};
     rc_buf_t response = rc_buf_stack();
-    MQTTClient_deliveryToken token;
     int ret = 0;
 
     if (_get_from_type_id(topic + offset, from, type, msgid) != 0) {
@@ -171,19 +170,31 @@ int on_rpc_message(rc_mqtt_client* mqtt, const char* topic,
         return -1;
     }
 
-    ret = callback(mqtt, from, type, message->payload, message->payloadlen,
-                   &response);
+    ret = callback(mqtt, from, type, message->application_message,
+                   message->application_message_size, &response);
 
     snprintf(acktopic, sizeof(acktopic), "/proton/%s/%s/ack/%s/%s",
              mqtt->app_id, mqtt->client_id, ret ? "succ" : "fail", msgid);
 
-    ret =
-        MQTTClient_publish(mqtt->client, acktopic, response.length,
-                           rc_buf_head_ptr(&response), MQTT_RPC_QOS, 0, &token);
+    ret = mqtt_publish(&mqtt->client, acktopic, rc_buf_head_ptr(&response),
+                       response.length, INT_QOS_TO_ENUM(MQTT_RPC_QOS));
 
-    LOGI(MQ_TAG, "mqtt client rpc ack(%s), ret(%d), msgId(%s), content(%s)",
-         acktopic, ret, msgid, rc_buf_head_ptr(&response));
+    if (mqtt->client.error != MQTT_OK) {
+        LOGW(MQ_TAG, "package rpc response message failed");
+        return RC_ERROR_MQTT_RPC;
+    }
+
+    mqtt_sync(&mqtt->client);
+
+    LOGI(MQ_TAG,
+         "mqtt client rpc ack(%s), ret(%d), msgId(%s), rc(%d), content(%s)",
+         acktopic, ret, msgid, mqtt->client.error, rc_buf_head_ptr(&response));
     rc_buf_free(&response);
+
+    if (mqtt->client.error != MQTT_OK) {
+        LOGW(MQ_TAG, "ack rpc failed");
+        return RC_ERROR_MQTT_RPC;
+    }
 
     return 0;
 }
@@ -202,7 +213,8 @@ int on_normal_message(rc_mqtt_client* mqtt, const char* topic,
         return -1;
     }
 
-    return callback(mqtt, from, type, message->payload, message->payloadlen);
+    return callback(mqtt, from, type, message->application_message,
+                    message->application_message_size);
 }
 
 int _consume_message(rc_mqtt_client* mqtt, const char* topic,
@@ -235,4 +247,11 @@ int _consume_message(rc_mqtt_client* mqtt, const char* topic,
     }
 
     return 0;
+}
+
+void publish_callback(void** unused, struct mqtt_response_publish* published) {
+    /*DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, context);
+    LOGI(MQ_TAG, "mqtt(%p) msgarrvd, topic(%s), message-len(%d)", mqtt,
+         topicName, message->payloadlen);
+    _consume_message(mqtt, topicName, message);*/
 }

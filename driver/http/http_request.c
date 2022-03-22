@@ -21,6 +21,7 @@
 #include "rc_http_request.h"
 #include "rc_mutex.h"
 #include "rc_thread.h"
+#include <ctype.h>
 
 #define RC_TAG "[Request]"
 #define MAX_RESPONSE_SIZE 409600
@@ -216,7 +217,9 @@ int http_request_set_opt(http_request req, int type, void* opt) {
             tv->tv_sec += t / 1000000;
         }
         break;
-    case HTTP_REQUEST_OPT_USER_DATA: request->user_data = opt; break;
+    case HTTP_REQUEST_OPT_USER_DATA:
+        request->user_data = opt;
+        break;
     case HTTP_REQUEST_OPT_HEADER:
         if (opt != NULL) {
             LL_insert(&((rc_buf_t*)opt)->link, request->headers.prev);

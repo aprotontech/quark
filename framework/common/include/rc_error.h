@@ -22,13 +22,14 @@
 #include <string.h>
 #include <time.h>
 
-
 #define rc_malloc malloc
 #define rc_free free
 
 #define DECLEAR_REAL_VALUE(type, name, ptr) \
     type* name = (type*)(ptr);              \
     if (name == NULL) return RC_ERROR_INVALIDATE_INPUT;
+
+#define PRINTSTR(s) ((s) != NULL ? (s) : "null")
 
 #define RC_SUCCESS 0
 #define RC_ERROR_JSON_FORMAT 100
@@ -59,6 +60,7 @@
 #define RC_ERROR_MQTT_PUBLISH 1201
 #define RC_ERROR_MQTT_SKIP_CONN 1202
 #define RC_ERROR_MQTT_CONNECT 1203
+#define RC_ERROR_MQTT_RPC 1204
 
 #define RC_ERROR_SDK_INIT 1300
 #define RC_ERROR_SDK_UNINIT 1301

@@ -40,11 +40,10 @@ mqtt_client rc_mqtt_create(const char* host, int port, const char* app_id,
                            const char* client_id, const char* username,
                            mqtt_session_token_callback callback);
 
-int rc_mqtt_enable_auto_connect(mqtt_client client, rc_timer_manager mgr,
-                                mqtt_connect_callback callback, int at_once);
+int rc_mqtt_start(mqtt_client client, mqtt_connect_callback callback);
 
-int rc_mqtt_cmd_subscribe(mqtt_client client, const char* topic,
-                          mqtt_subscribe_callback callback);
+int rc_mqtt_subscribe(mqtt_client client, const char* topic,
+                      mqtt_subscribe_callback callback);
 
 int rc_mqtt_publish(mqtt_client client, const char* topic, const char* body,
                     int len);
@@ -52,8 +51,8 @@ int rc_mqtt_publish(mqtt_client client, const char* topic, const char* body,
 int rc_mqtt_rpc_send(mqtt_client client, const char* topic, const char* body,
                      int len, int timeout, rc_buf_t* response);
 
-int rc_mqtt_rpc_subscribe(mqtt_client client, const char* topic,
-                          mqtt_rpc_event_callback callback);
+int rc_mqtt_rpc_event(mqtt_client client, const char* topic,
+                      mqtt_rpc_event_callback callback);
 
 int rc_mqtt_close(mqtt_client client);
 
