@@ -208,9 +208,6 @@ int rc_buf_queue_push(rc_buf_queue q, const char* data, int len,
 }
 
 int _dequeue_data(rc_buf_queue_t* queue, char* data, int len) {
-    rc_buf_t* buf = NULL;
-    char* p = data;
-
     int offset = 0;
     while (offset < len && !LL_isspin(&queue->inuse_queue)) {
         rc_buf_t* buf = (rc_buf_t*)queue->inuse_queue.next;

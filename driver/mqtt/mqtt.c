@@ -822,7 +822,6 @@ ssize_t __mqtt_recv(struct mqtt_client *client) {
     while (mqtt_recv_ret == MQTT_OK) {
         /* read in as many bytes as possible */
         ssize_t rv, consumed;
-        struct mqtt_queued_message *msg = NULL;
 
         rv = mqtt_pal_recvall(client->socketfd, client->recv_buffer.curr,
                               client->recv_buffer.curr_sz, 0);

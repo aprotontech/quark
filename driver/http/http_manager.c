@@ -28,35 +28,33 @@
 
 typedef struct _rc_http_manager_t {
     dns_resolver dns;
-    
+
 } rc_http_manager_t;
 
-http_manager http_manager_init()
-{
-    rc_http_manager_t* http_mgr = (rc_http_manager_t*)rc_malloc(sizeof(rc_http_manager_t));
+http_manager http_manager_init() {
+    rc_http_manager_t* http_mgr =
+        (rc_http_manager_t*)rc_malloc(sizeof(rc_http_manager_t));
     http_mgr->dns = NULL;
     LOGI(HM_TAG, "http manager(%p) new", http_mgr);
     return http_mgr;
 }
 
-http_client http_manager_get_client(http_manager mgr, const char* domain, const char *ipaddr, int port)
-{
+http_client http_manager_get_client(http_manager mgr, const char* domain,
+                                    const char* ipaddr, int port) {
     http_client client = http_client_init(mgr, domain, ipaddr, port);
     return client;
 }
 
-int http_manager_free_client(http_manager mgr, http_client client, int close)
-{
-    http_client_uninit(client);
+int http_manager_free_client(http_manager mgr, http_client client, int close) {
+    return http_client_uninit(client);
 }
 
-int http_manager_set_keepalive(http_manager mgr, const char* domain, int port, int max_clients, int keep_alive_sec)
-{
+int http_manager_set_keepalive(http_manager mgr, const char* domain, int port,
+                               int max_clients, int keep_alive_sec) {
     return 0;
 }
 
-int http_manager_uninit(http_manager mgr)
-{
+int http_manager_uninit(http_manager mgr) {
     rc_http_manager_t* http_mgr = (rc_http_manager_t*)mgr;
     LOGI(HM_TAG, "http manager(%p) free", http_mgr);
     if (http_mgr != NULL) {
@@ -67,8 +65,7 @@ int http_manager_uninit(http_manager mgr)
     return 0;
 }
 
-int http_manager_set_dns_resolver(http_manager mgr, dns_resolver dns)
-{
+int http_manager_set_dns_resolver(http_manager mgr, dns_resolver dns) {
     rc_http_manager_t* http_mgr = (rc_http_manager_t*)mgr;
     if (http_mgr != NULL) {
         http_mgr->dns = dns;
@@ -77,10 +74,9 @@ int http_manager_set_dns_resolver(http_manager mgr, dns_resolver dns)
     return RC_SUCCESS;
 }
 
-int rc_resolve_dns(http_manager mgr, const char* host, struct in_addr* ip)
-{
-    struct hostent *he;
-    struct in_addr **addr_list;
+int rc_resolve_dns(http_manager mgr, const char* host, struct in_addr* ip) {
+    struct hostent* he = NULL;
+    struct in_addr** addr_list;
     rc_http_manager_t* http_mgr = (rc_http_manager_t*)mgr;
 
     if (http_mgr != NULL && http_mgr->dns != NULL) {
@@ -96,7 +92,7 @@ int rc_resolve_dns(http_manager mgr, const char* host, struct in_addr* ip)
         return RC_ERROR_UNKOWN_HOST;
     }
 
-    addr_list = (struct in_addr **)he->h_addr_list;
+    addr_list = (struct in_addr**)he->h_addr_list;
     if (addr_list[0] == NULL) {
         return errno;
     }
@@ -104,4 +100,3 @@ int rc_resolve_dns(http_manager mgr, const char* host, struct in_addr* ip)
     *ip = *(addr_list[0]);
     return RC_SUCCESS;
 }
-

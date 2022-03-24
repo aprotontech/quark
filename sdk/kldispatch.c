@@ -124,7 +124,7 @@ int mqtt_client_init(rc_runtime_t* env, const char* app_id,
 
 const char* env_sdk_device_token(const char* client_id) {
     rc_runtime_t* env = get_env_instance();
-    const char *cid, *token;
+    const char *cid, *token = NULL;
     if (env != NULL && env->device != NULL) {
         switch (env->settings.iot_platform) {
         case RC_IOT_TENCENT:

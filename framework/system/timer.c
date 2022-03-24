@@ -144,7 +144,6 @@ void* timer_tick_thread(void* mgr) {
 }
 
 rc_timer_manager rc_timer_manager_init() {
-    int ret;
     rc_timer_manager_t* mgr =
         (rc_timer_manager_t*)malloc(sizeof(rc_timer_manager_t));
     if (mgr == NULL) {

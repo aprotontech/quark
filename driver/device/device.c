@@ -124,7 +124,6 @@ aidevice rc_device_init(http_manager mgr, const char* url,
 
 int real_update_device_info(cJSON* input, rc_device_t* device) {
     int rc = RC_ERROR_REGIST_DEVICE;
-    char* str_rc = NULL;
     char *session_token = NULL, *client_id = NULL, *app_id = NULL;
     LOGI(DM_TAG, "start to BEGIN_MAPPING_JSON");
     BEGIN_MAPPING_JSON(input, root)
@@ -344,7 +343,6 @@ int query_device_session_token(rc_device_t* device) {
 
 int rc_device_regist(aidevice dev, const char* app_id, const char* uuid,
                      const char* app_secret, int at_once) {
-    int now = time(NULL);
     DECLEAR_REAL_VALUE(rc_device_t, device, dev);
     LOGI(DM_TAG,
          "rc_device_storybox_regist: device(%p), app_id(%s), uuid(%s), "

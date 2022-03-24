@@ -53,6 +53,7 @@ void* test_query_thread(void* arg) {
     LOGI(VD_TAG, "before httpget_other_service_url");
     rc_sleep(1000);  // sleep 1s
     httpget_other_service_url();
+    return NULL;
 }
 
 int watch_wifi_status_change(int connected) {

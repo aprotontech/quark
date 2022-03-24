@@ -185,7 +185,6 @@ static int ans_check_timer(rc_timer timer, void* usr_data) {
 ans_service rc_service_init(const char* app_id, const char* device_id,
                             const char* url, http_manager hmgr,
                             rc_timer_manager tmgr, rc_network_manager* nmgr) {
-    int len = 0;
     rcservice_mgr_t* mgr =
         (rcservice_mgr_t*)rc_malloc(sizeof(rcservice_mgr_t) + strlen(app_id) +
                                     strlen(device_id) + strlen(url) + 3);

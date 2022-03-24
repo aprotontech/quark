@@ -41,11 +41,7 @@ rc_runtime_t* get_env_instance() { return _env; }
 
 int rc_sdk_init(const char* env_name, int enable_debug_client_info,
                 rc_settings_t* settings) {
-    int rc = 0, port, i;
     rc_runtime_t* env = NULL;
-    const char* url;
-    rc_buf_t* tmp;
-    char* host = NULL;
 
     if (_env != NULL) {
         LOGW(SDK_TAG, "quark sdk had init");

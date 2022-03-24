@@ -219,7 +219,6 @@ int on_normal_message(rc_mqtt_client* mqtt, const char* topic,
 
 int _consume_message(rc_mqtt_client* mqtt, const char* topic,
                      MQTTClient_message* message) {
-    int ret;
     any_t p;
     mqtt_subscribe_t* sub = NULL;
     void* callback = NULL;
@@ -238,7 +237,6 @@ int _consume_message(rc_mqtt_client* mqtt, const char* topic,
         return -1;
     }
 
-    int offset = 0;
     if (is_topic_match(topic, mqtt->topic_prefix, MQTT_TOPIC_CMD) != 0) {
         on_normal_message(mqtt, topic, message,
                           (mqtt_subscribe_callback)callback);

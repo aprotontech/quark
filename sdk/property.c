@@ -223,7 +223,6 @@ int property_manager_uninit(property_manager manager) {
 int on_property_timer(rc_timer timer, void* usr_data) {
     long long now = 0;
     char isreportsuccess = 0;
-    any_t propertydis;
     char* str = NULL;
     rc_buf_t response = rc_buf_stack();
     void* params[2] = {&now, &isreportsuccess};
@@ -396,7 +395,6 @@ int on_remote_set_property(const char* key, cJSON* JSON(data),
 
 int parse_attrs_get_result(rc_property_manager* mgr, cJSON* paramresult,
                            va_list ap, cJSON* JSON(names)) {
-    int i = 0;
     int apirc = 0;
     cJSON* json = NULL;
     char* key = NULL;

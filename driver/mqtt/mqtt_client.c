@@ -185,13 +185,15 @@ int mqtt_connect_to_remote(rc_mqtt_client* mqtt) {
     }
 
     if (mqtt->is_inited) {
-        mqtt_reinit(&mqtt->client, socket, rc_buf_head_ptr(mqtt->send_buf),
-                    mqtt->send_buf->total, rc_buf_head_ptr(mqtt->recv_buf),
-                    mqtt->recv_buf->total);
+        mqtt_reinit(
+            &mqtt->client, socket, (uint8_t*)rc_buf_head_ptr(mqtt->send_buf),
+            mqtt->send_buf->total, (uint8_t*)rc_buf_head_ptr(mqtt->recv_buf),
+            mqtt->recv_buf->total);
     } else {
-        ret = mqtt_init(&mqtt->client, socket, rc_buf_head_ptr(mqtt->send_buf),
-                        mqtt->send_buf->total, rc_buf_head_ptr(mqtt->recv_buf),
-                        mqtt->recv_buf->total, publish_callback);
+        ret = mqtt_init(
+            &mqtt->client, socket, (uint8_t*)rc_buf_head_ptr(mqtt->send_buf),
+            mqtt->send_buf->total, (uint8_t*)rc_buf_head_ptr(mqtt->recv_buf),
+            mqtt->recv_buf->total, publish_callback);
 
         if (ret != MQTT_OK) {
             LOGI(MQ_TAG, "init mqtt client failed with %d", ret);
@@ -218,7 +220,6 @@ int mqtt_connect_to_remote(rc_mqtt_client* mqtt) {
 }
 
 int rc_mqtt_start(mqtt_client client, mqtt_connect_callback callback) {
-    int rc;
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
 
     if (mqtt->sync_thread != NULL) {
@@ -324,6 +325,8 @@ static void* mqtt_main_thread(void* arg) {
     }
 
     mqtt_client_disconnect(mqtt);
+
+    return NULL;
 }
 
 int sub_item_free(any_t ipm, const char* key, any_t value) {

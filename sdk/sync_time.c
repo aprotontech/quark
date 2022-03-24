@@ -9,8 +9,10 @@ int rc_enable_ntp_sync_time() {
     sntp_setservername(0, "ntp1.aliyun.com");
     sntp_setservername(1, "pool.ntp.org");
     sntp_init();
+
     setenv("TZ", "CST-8", 1);
     tzset();
+    return 0;
 }
 
 #elif defined(__QUARK_LINUX__)
@@ -22,10 +24,10 @@ int rc_enable_ntp_sync_time() { return 0; }
 int parse_server_time(cJSON* input, double* now) {
     char* str_rc;
     BEGIN_MAPPING_JSON(input, root)
-    JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, rc, str_rc)
-    if (strcmp(str_rc, "0") == 0) {
-        JSON_OBJECT_EXTRACT_INT_TO_DOUBLE(root, now, *now);
-    }
+        JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, rc, str_rc)
+        if (strcmp(str_rc, "0") == 0) {
+            JSON_OBJECT_EXTRACT_INT_TO_DOUBLE(root, now, *now);
+        }
     END_MAPPING_JSON(root)
 
     return 0;
@@ -39,7 +41,7 @@ int sync_server_time(rc_timer timer, void* dev) {
                                 500, &response);
     if (rc == 0) {
         BEGIN_EXTRACT_JSON(rc_buf_head_ptr(&response), root)
-        parse_server_time(JSON(root), &now);
+            parse_server_time(JSON(root), &now);
         END_EXTRACT_JSON(root)
     }
 

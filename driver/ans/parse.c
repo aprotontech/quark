@@ -47,7 +47,7 @@ char* ans_build_request_json_body(const char* app_id, const char* device_id) {
 }
 
 int json_to_service(cJSON* v, const char* service_name, rc_service_t** output) {
-    int nips = 0, nprotocols = 0, size, i, len;
+    int nips = 0, nprotocols = 0, size, i;
     char* p;
     rc_service_t tmp;
     rc_service_t* s;

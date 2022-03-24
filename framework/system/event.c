@@ -28,7 +28,7 @@
 
 typedef struct _rc_pthread_event_t {
 #if defined(__QUARK_RTTHREAD__)
-	rt_event_t mevent;
+    rt_event_t mevent;
 #elif defined(__QUARK_FREERTOS__)
     EventGroupHandle_t mevent;
 #elif defined(__QUARK_LINUX__)
@@ -37,13 +37,13 @@ typedef struct _rc_pthread_event_t {
 #endif
 } rc_pthread_event_t;
 
-rc_event rc_event_init()
-{
-    rc_pthread_event_t* event = (rc_pthread_event_t*)malloc(sizeof(rc_pthread_event_t));
+rc_event rc_event_init() {
+    rc_pthread_event_t* event =
+        (rc_pthread_event_t*)malloc(sizeof(rc_pthread_event_t));
 #if defined(__QUARK_RTTHREAD__)
-	event->mevent = rt_event_create ("rc_event", RT_IPC_FLAG_FIFO);
+    event->mevent = rt_event_create("rc_event", RT_IPC_FLAG_FIFO);
     if (event->mevent == RT_NULL) {
-		free(event);
+        free(event);
         return NULL;
     }
 #elif defined(__QUARK_FREERTOS__)
@@ -55,21 +55,20 @@ rc_event rc_event_init()
     return event;
 }
 
-int rc_event_wait(rc_event evt, int timeout_ms)
-{
+int rc_event_wait(rc_event evt, int timeout_ms) {
     int rc;
-    int msec;
     rc_pthread_event_t* event = (rc_pthread_event_t*)evt;
     if (event != NULL) {
 #if defined(__QUARK_RTTHREAD__)
         rt_uint32_t e;
 
         rc = rt_event_recv(event->mevent, RC_DEFAULT_EVENT_SET,
-                                RT_EVENT_FLAG_CLEAR | RT_EVENT_FLAG_AND,
-                                timeout_ms, &e);
+                           RT_EVENT_FLAG_CLEAR | RT_EVENT_FLAG_AND, timeout_ms,
+                           &e);
 #elif defined(__QUARK_FREERTOS__)
         int tick = timeout_ms * configTICK_RATE_HZ / 1000;
-        EventBits_t uxBits = xEventGroupWaitBits(event->mevent, RC_DEFAULT_EVENT_SET, pdTRUE, pdFALSE, tick);
+        EventBits_t uxBits = xEventGroupWaitBits(
+            event->mevent, RC_DEFAULT_EVENT_SET, pdTRUE, pdFALSE, tick);
         if (uxBits == RC_DEFAULT_EVENT_SET) {
             rc = 0;
         } else {
@@ -87,12 +86,11 @@ int rc_event_wait(rc_event evt, int timeout_ms)
 #endif
         return rc;
     }
-    
+
     return EINVAL;
 }
 
-int rc_event_signal(rc_event evt)
-{
+int rc_event_signal(rc_event evt) {
     int rc;
     rc_pthread_event_t* event = (rc_pthread_event_t*)evt;
     if (event != NULL) {
@@ -107,12 +105,11 @@ int rc_event_signal(rc_event evt)
 #endif
         return rc;
     }
-    
+
     return EINVAL;
 }
 
-int rc_event_uninit(rc_event evt)
-{
+int rc_event_uninit(rc_event evt) {
     rc_pthread_event_t* event = (rc_pthread_event_t*)evt;
     if (event != NULL) {
 #if defined(__QUARK_RTTHREAD__)

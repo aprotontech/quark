@@ -97,7 +97,7 @@ http_request http_request_init(http_manager mgr, const char* raw_url,
                                const char* ipaddr, int method) {
     const char* tmp;
     char buf[10] = {0};
-    int port;
+    int port = 0;
     int ret = 0;
     int len = 0;
     struct http_parser_url url;
@@ -267,13 +267,12 @@ int http_request_set_opt(http_request req, int type, void* opt) {
 }
 
 int http_request_on_recv(http_request _request, char* buf, size_t len) {
-    size_t r = 0;
     rc_http_request_t* request = (rc_http_request_t*)_request;
     if (isprint(buf[0])) {  // skip un-print body
         LOGI(RC_TAG, "response: %s", buf);
     }
 
-    r = http_parser_execute(&request->parser, &request->settings, buf, len);
+    http_parser_execute(&request->parser, &request->settings, buf, len);
 
     if (request->parser.http_errno) {
         LOGI(RC_TAG, "http_parser_execute failed with(%s:%s)",
@@ -451,8 +450,8 @@ int http_request_async_execute(http_request req, http_body_callback callback,
 }
 
 int http_request_async_send(http_request req, const char* body, int len) {
-    int rc, i;
-    int can_send, timeout;
+    int rc;
+    int timeout;
     struct timeval tm;
     char hex[20] = {0};
     char* p = &hex[1];
@@ -577,7 +576,7 @@ int on_message_complete(http_parser* p) {
     return 0;
 }
 
-int on_url_cb(http_parser* p, const char* at, size_t len) {}
+int on_url_cb(http_parser* p, const char* at, size_t len) { return 0; }
 
 int header_field_cb(http_parser* p, const char* at, size_t len) { return 0; }
 
