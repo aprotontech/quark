@@ -173,7 +173,7 @@ int need_refresh_token(const char* body) {
     }
 
     if (!maybe) {
-        return;
+        return 0;
     }
 
     BEGIN_EXTRACT_JSON(body, root)
