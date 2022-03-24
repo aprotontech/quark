@@ -130,6 +130,8 @@ ADD_SUBDIRECTORY(driver/player)
 
 ADD_SUBDIRECTORY(sdk)
 
+ADD_SUBDIRECTORY(app/location)
+
 ADD_SUBDIRECTORY(demo/examples)
 
 IF(QUARK_SYSTEM EQUAL 1)
