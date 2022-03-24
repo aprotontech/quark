@@ -230,7 +230,7 @@ int rc_mqtt_start(mqtt_client client, mqtt_connect_callback callback) {
     mqtt->on_connect = callback;
 
     rc_thread_context_t tc = {
-        .joinable = 1, .name = "mqtt", .priority = 0, .stack_size = 2048};
+        .joinable = 1, .name = "mqtt", .priority = 0, .stack_size = 4096};
     mqtt->sync_thread = rc_thread_create(mqtt_main_thread, mqtt, &tc);
 
     return RC_SUCCESS;
