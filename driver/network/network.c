@@ -14,17 +14,24 @@
 #include "rc_network.h"
 
 typedef struct _rc_network_manager_t {
-    int status;
+    int status[_NETWORK_MAX_LEVEL];
 } rc_network_manager_t;
 
-int is_network_available(rc_network_manager nm, int level) {
+int network_is_available(rc_network_manager nm, int level) {
     DECLEAR_REAL_VALUE(rc_network_manager_t, mgr, nm);
-    return mgr->status;
+    if (level >= NETWORK_LOCAL && level < _NETWORK_MAX_LEVEL) {
+        return mgr->status[level];
+    }
+    return 0;
 }
 
 int network_set_available(rc_network_manager nm, int level, int available) {
     DECLEAR_REAL_VALUE(rc_network_manager_t, mgr, nm);
-    mgr->status = available;
+    if (level >= NETWORK_LOCAL && level < _NETWORK_MAX_LEVEL) {
+        for (int i = NETWORK_LOCAL; i <= level; ++i) {
+            mgr->status[i] = available;
+        }
+    }
     return 0;
 }
 
@@ -32,7 +39,9 @@ rc_network_manager network_manager_init(int current_status) {
     rc_network_manager_t* mgr =
         (rc_network_manager_t*)rc_malloc(sizeof(rc_network_manager_t));
 
-    mgr->status = current_status;
+    for (int i = NETWORK_LOCAL; i < _NETWORK_MAX_LEVEL; ++i) {
+        mgr->status[i] = current_status;
+    }
 
     return mgr;
 }

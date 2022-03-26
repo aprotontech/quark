@@ -12,6 +12,7 @@ int mqtt_client_init(rc_runtime_t* env, const char* app_id,
 void sdk_device_token_callback(aidevice dev, const char* token, int timeout) {
     rc_runtime_t* env = get_env_instance();
     if (env != NULL && env->device == dev) {
+        network_set_available(env->netmgr, NETWORK_SESSION, 1);
         if (env->session_chanage != NULL) {
             env->session_chanage(token, timeout);
         }

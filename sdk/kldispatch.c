@@ -67,6 +67,9 @@ int sdk_mqtt_status_callback(rc_mqtt_client client, int status,
                              const char* cause) {
     rc_runtime_t* env = get_env_instance();
     if (env != NULL && env->mqtt == client) {
+        network_set_available(env->netmgr, NETWORK_KEEPALIVE,
+                              status == MQTT_STATUS_CONNECTED);
+
         if (env->kl_change != NULL) {
             env->kl_change(status, cause);
         }

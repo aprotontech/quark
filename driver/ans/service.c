@@ -165,7 +165,7 @@ int ans_service_do_sync(rcservice_mgr_t* mgr) {
 // SERVICE INIT/UNINIT
 static int ans_check_timer(rc_timer timer, void* usr_data) {
     DECLEAR_REAL_VALUE(rcservice_mgr_t, mgr, usr_data);
-    if (is_network_available(mgr->netmgr, 0) == 0) {
+    if (network_is_available(mgr->netmgr, NETWORK_LOCAL) == 0) {
         return 0;
     }
 
