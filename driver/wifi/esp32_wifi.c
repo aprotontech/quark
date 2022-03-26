@@ -8,10 +8,14 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "logs.h"
+#include "rc_error.h"
 
 #include "nvs_flash.h"
 
 const int CONNECTED_BIT = BIT0;
+const int SCAN_DONE_BIT = BIT1;
+
+#define MAX_AP_CACHE_SIZE 20
 
 int _get_wifi_connect_bit(EventGroupHandle_t wifi_event_group) {
     return (xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT) ==
@@ -48,6 +52,47 @@ static void event_handler(void* arg, esp_event_base_t event_base,
                 mgr->on_changed(mgr, RC_WIFI_DISCONNECTED);
             }
             break;
+        case SYSTEM_EVENT_SCAN_DONE: {
+            uint16_t i, ap_count = 0;
+            wifi_ap_record_t tmp;
+            rc_wifi_ap_t* aps = NULL;
+
+            esp_wifi_scan_get_ap_num(&ap_count);
+            if (ap_count != 0 && mgr->scan_result != NULL) {
+                if (mgr->ap_cache == NULL) {
+                    mgr->ap_cache = (wifi_ap_record_t*)malloc(
+                        sizeof(wifi_ap_record_t) * MAX_AP_CACHE_SIZE);
+                }
+                wifi_ap_record_t* list = mgr->ap_cache;
+                if (ap_count >= MAX_AP_CACHE_SIZE) {
+                    ap_count = MAX_AP_CACHE_SIZE;
+                }
+
+                ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&ap_count, list));
+
+                // because sizeof(wifi_ap_record_t) > sizeof(rc_wifi_ap_t)
+                aps = (rc_wifi_ap_t*)list;
+                for (i = 0; i < ap_count; i++) {
+                    tmp = list[i];
+
+                    aps[i].rssi = list[i].rssi;
+
+                    memcpy(aps[i].mac, tmp.bssid, sizeof(tmp.bssid));
+                    memcpy(aps[i].ssid, tmp.ssid, sizeof(tmp.ssid));
+
+                    LOGI(WIFI_TAG, "(%d,\"%s\",%d,\"" MACSTR "\", %d)",
+                         tmp.authmode, aps[i].ssid, aps[i].rssi,
+                         MAC2STR(aps[i].mac), tmp.primary);
+                }
+
+                mgr->scan_result->aps = aps;
+                mgr->scan_result->count = ap_count;
+            }
+
+            xEventGroupSetBits(mgr->wifi_event_group, SCAN_DONE_BIT);
+
+            break;
+        }
         default:
             break;
         }
@@ -75,12 +120,7 @@ int wifi_manager_connect(wifi_manager wm, const char* ssid,
         LOGW(WIFI_TAG, "input wifi manager is null");
         return RC_ERROR_INVALIDATE_INPUT;
     }
-    mgr->wifi_event_group = xEventGroupCreate();
 
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, mgr, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, mgr, NULL));
     wifi_config_t wifi_config = {
         .sta =
             {
@@ -105,11 +145,55 @@ int wifi_manager_connect(wifi_manager wm, const char* ssid,
     strcpy((char*)wifi_config.sta.ssid, ssid);
     strcpy((char*)wifi_config.sta.password, password);
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     LOGI(WIFI_TAG, "wifi_init_sta finished.");
 
+    return 0;
+}
+
+int wifi_manager_scan_ap(wifi_manager wm, rc_wifi_scan_result_t* result) {
+    DECLEAR_REAL_VALUE(wifi_manager_t, mgr, wm);
+    wifi_scan_config_t scan_config = {
+        .bssid = NULL,
+        .channel = 0,
+        .show_hidden = 1,
+        .scan_type = WIFI_SCAN_TYPE_ACTIVE,
+        .ssid = NULL,
+    };
+
+    if (result == NULL) {
+        LOGW(WIFI_TAG, "input result is empty");
+        return RC_ERROR_INVALIDATE_INPUT;
+    }
+
+    if (mgr->scan_result != NULL) {
+        LOGI(WIFI_TAG, "current is scaning");
+        return RC_ERROR_REPEAT_CALL;
+    }
+
+    mgr->scan_result = result;
+
+    xEventGroupClearBits(mgr->wifi_event_group, SCAN_DONE_BIT);
+
+    ESP_ERROR_CHECK(esp_wifi_scan_start(&scan_config, 1));
+
+    xEventGroupWaitBits(mgr->wifi_event_group, SCAN_DONE_BIT, 1, 1, 10 * 1000);
+
+    mgr->scan_result = NULL;
+    return 0;
+}
+
+int _wifi_manager_init(wifi_manager_t* mgr) {
+    mgr->ap_cache = NULL;
+    mgr->wifi_event_group = xEventGroupCreate();
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(
+        WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, mgr, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(
+        IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, mgr, NULL));
+
+    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     return 0;
 }
 

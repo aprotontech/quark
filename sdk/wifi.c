@@ -6,7 +6,8 @@ int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status) {
         env->settings.wifi_status_callback(wifi_status == RC_WIFI_CONNECTED);
     }
 
-    network_set_available(env->netmgr, wifi_status == RC_WIFI_CONNECTED);
+    network_set_available(env->netmgr, NETWORK_LOCAL,
+                          wifi_status == RC_WIFI_CONNECTED);
     if (wifi_status == RC_WIFI_CONNECTED) {
         const char* token = get_device_session_token(env->device);
         if (token == NULL || token[0] == '\0') {

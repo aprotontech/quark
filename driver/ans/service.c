@@ -267,16 +267,18 @@ int rc_service_query(ans_service ans, const char* name, const char* protocol,
         rc_service_t* service = (rc_service_t*)val;
         // find the protocol
         if (MAP_OK == hashmap_get(service->protocols, (char*)protocol, &val)) {
-            return fill_protocol_info(service, (rc_service_protocol_t*)val,
-                                      info);
+            fill_protocol_info(service, (rc_service_protocol_t*)val, info);
+            rc_mutex_unlock(mgr->mobject);
+            return RC_SUCCESS;
         }
     } else if (MAP_OK == hashmap_get(mgr->smap, DEFAULT_SERVICE, &val) &&
                val != NULL) {
         rc_service_t* service = (rc_service_t*)val;
         // find the protocol
         if (MAP_OK == hashmap_get(service->protocols, (char*)protocol, &val)) {
-            return fill_protocol_info(service, (rc_service_protocol_t*)val,
-                                      info);
+            fill_protocol_info(service, (rc_service_protocol_t*)val, info);
+            rc_mutex_unlock(mgr->mobject);
+            return RC_SUCCESS;
         }
     }
     rc_mutex_unlock(mgr->mobject);

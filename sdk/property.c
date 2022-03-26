@@ -34,6 +34,8 @@ char* format_query_post(rc_property_manager* mgr, const char* source,
 int on_remote_set_property(const char* key, cJSON* data, rc_buf_t* response);
 extern int free_hash_item(any_t n, const char* key, any_t val);
 
+int _property_report_retry_intervals[] = {10, 30, 30, 60, 120, 180};
+
 int rc_property_value_check(int type, void* value, rc_property_t* ppty) {
     int r = 0;
     switch (type) {
@@ -196,12 +198,14 @@ property_manager property_manager_init(rc_runtime_t* env,
         (rc_property_manager*)rc_malloc(sizeof(rc_property_manager));
     mgr->findchangeditem = 0;
     mgr->property_change_report = property_change_report;
-    mgr->porperty_retry_interval = porperty_retry_interval;
     mgr->mgr_mutex = rc_mutex_create(NULL);
     mgr->values = hashmap_new();
     mgr->property_timer =
         rc_timer_create(env->timermgr, porperty_retry_interval,
                         porperty_retry_interval, on_property_timer, mgr);
+    rc_backoff_algorithm_init(
+        &mgr->report_backoff, _property_report_retry_intervals,
+        sizeof(_property_report_retry_intervals) / sizeof(int), 12 * 3600);
 
     return mgr;
 }
@@ -236,7 +240,9 @@ int on_property_timer(rc_timer timer, void* usr_data) {
         return 0;
     }
 
-    if (mgr->findchangeditem != 0 && mgr->values != NULL) {
+    if ((mgr->findchangeditem != 0 ||
+         rc_backoff_algorithm_can_retry(&mgr->report_backoff)) &&
+        mgr->values != NULL) {
         rc_mutex_lock(mgr->mgr_mutex);
         GETTIMESTAMP(now);
         BEGIN_JSON_OBJECT(root)
@@ -264,6 +270,8 @@ int on_property_timer(rc_timer timer, void* usr_data) {
         rc_mutex_lock(mgr->mgr_mutex);
         hashmap_iterate(mgr->values, clear_change_state, (any_t)params);
         rc_mutex_unlock(mgr->mgr_mutex);
+
+        rc_backoff_algorithm_set_result(&mgr->report_backoff, isreportsuccess);
     }
 
     return 0;

@@ -28,6 +28,7 @@
 #include "rc_network.h"
 #include "rc_timer.h"
 #include "wifi.h"
+#include "backoff.h"
 
 #define SDK_TAG "[QUARK]"
 #define NOTIFY_TIME_DIFF 60
@@ -43,6 +44,7 @@ typedef struct _rc_local_config_t {
 } rc_local_config_t;
 
 typedef void* property_manager;
+typedef void* location_manager;
 
 typedef struct _rc_runtime_t {
     rc_local_config_t local;
@@ -58,6 +60,8 @@ typedef struct _rc_runtime_t {
 
     property_manager properties;
 
+    location_manager locmgr;
+
     rc_session_change session_chanage;
     rc_sync_time_callback time_update;
 
@@ -70,6 +74,7 @@ typedef struct _rc_runtime_t {
 
     wifi_manager wifimgr;
 
+    // buffer
     rc_buf_t buff;
 
 } rc_runtime_t;

@@ -22,12 +22,15 @@
 #include "rc_http_request.h"
 #include "rc_json.h"
 #include "rc_mutex.h"
+#include "backoff.h"
 
 #define DM_TAG "[DEVICE]"
-#define DM_TOKEN_REFRESH_INTERVAL 10
-#define DM_MAX_FAILED_TIMES 60
 
 extern void md5tostr(const char* message, long len, char* output);
+
+#define DM_TOKEN_REFRESH_INTERVAL 10
+
+int _device_regist_retry_intervals[] = {10, 10, 30, 60, 120, 180};
 
 typedef struct _rc_device_t {
     char* app_id;
@@ -45,8 +48,7 @@ typedef struct _rc_device_t {
     int regist_type;  // 0-android, 1-storybox
     rc_timer refresh_timer;
     device_token_change callback;
-    int last_refresh_time;
-    int failed_times;
+    backoff_algorithm_t sbackoff;
 
     int is_refreshing;
 
@@ -116,6 +118,10 @@ aidevice rc_device_init(http_manager mgr, const char* url,
     device->is_refreshing = 0;
     device->client_id = NULL;
     device->mobject = rc_mutex_create(NULL);
+
+    rc_backoff_algorithm_init(
+        &device->sbackoff, _device_regist_retry_intervals,
+        sizeof(_device_regist_retry_intervals) / sizeof(int), 3600);
 
     LOGI(DM_TAG, "device(%p) new", device);
 
@@ -230,13 +236,7 @@ int regist_device(rc_device_t* device, int now, const char* signature) {
 
     rc_buf_free(&response);
 
-    if (rc == RC_SUCCESS) {
-        device->failed_times = 0;  // reset retry times
-    } else {
-        if (device->failed_times < DM_MAX_FAILED_TIMES) {
-            ++device->failed_times;
-        }
-    }
+    rc_backoff_algorithm_set_result(&device->sbackoff, rc == RC_SUCCESS);
 
     return rc;
 }
@@ -337,7 +337,6 @@ int query_device_session_token(rc_device_t* device) {
         rc = regist_device(device, now, signature);
     }
 
-    device->last_refresh_time = time(NULL);
     return rc;
 }
 
@@ -396,13 +395,10 @@ int device_to_refresh_token(rc_timer timer, void* dev) {
     rc_device_t* device = (rc_device_t*)dev;
     if (device != NULL) {
         LOGD(DM_TAG, "device_to_refresh_token");
-        int now = time(NULL);
-        if (now + device->timeout / 2 + 30 >= device->expire &&
-            device->last_refresh_time +
-                    ((device->failed_times + 1) * DM_TOKEN_REFRESH_INTERVAL) <=
-                now) {
+        if (rc_backoff_algorithm_can_retry(&device->sbackoff)) {
             LOGI(DM_TAG, "token timeout, so to reget token");
             if (query_device_session_token(device) == 0) {
+                device->sbackoff.suc_retry_interval = device->timeout / 2;
                 if (device->callback != NULL) {
                     device->callback(device, device->session_token,
                                      device->timeout);
@@ -450,7 +446,8 @@ int rc_device_refresh_atonce(aidevice dev, int async) {
         return RC_ERROR_REGIST_DEVICE;
     }
 
-    device->failed_times = 0;  // reset retry times
+    device->sbackoff.status = 0;
+    device->sbackoff.index = 0;
 
     // refresh in next 100ms
     return rc_timer_ahead_once(device->refresh_timer, 100);

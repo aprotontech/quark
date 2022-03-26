@@ -26,6 +26,10 @@ void sdk_device_token_callback(aidevice dev, const char* token, int timeout) {
                 return;
             }
         }
+
+        if (env->settings.auto_report_location && env->time_update == 0) {
+            rc_report_location();
+        }
     }
 }
 

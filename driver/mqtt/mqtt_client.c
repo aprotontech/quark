@@ -22,7 +22,7 @@
 
 #define MQ_TIMER_INTERVAL 5
 
-short _mqtt_reconnect_interval[] = {5, 10, 10, 20, 30, 40, 60};
+int _mqtt_reconnect_interval[] = {5, 10, 10, 20, 30, 40, 60};
 
 static void* mqtt_main_thread(void* arg);
 
@@ -104,6 +104,10 @@ mqtt_client rc_mqtt_create(const char* host, int port, const char* app_id,
     mqtt->remote_host.sin_family = AF_INET;
     mqtt->remote_host.sin_port = htons(port);
     mqtt->remote_host.sin_addr.s_addr = inet_addr(host);
+
+    rc_backoff_algorithm_init(
+        &mqtt->reconnect_backoff, _mqtt_reconnect_interval,
+        sizeof(_mqtt_reconnect_interval) / sizeof(int), -1);
 
     LOGI(MQ_TAG, "mqtt(%p), client_id(%s) created", mqtt, mqtt->client_id);
 
@@ -262,18 +266,11 @@ static void mqtt_client_disconnect(rc_mqtt_client* mqtt) {
 static void* mqtt_main_thread(void* arg) {
     rc_mqtt_client* mqtt = (rc_mqtt_client*)arg;
 
-    mqtt->cur_reconnect_interval_index = 0;
-    mqtt->last_reconnect_time = 0;
-
     while (!mqtt->is_exit) {
         while (!mqtt->is_exit) {
             rc_event_wait(mqtt->mevent, 500);
 
-            int now = time(NULL);
-            int interval =
-                _mqtt_reconnect_interval[mqtt->cur_reconnect_interval_index];
-            if (mqtt->last_reconnect_time + interval <= now) {
-                // need reconnect to the remote mqtt server
+            if (rc_backoff_algorithm_can_retry(&mqtt->reconnect_backoff)) {
                 break;
             }
         }
@@ -293,26 +290,20 @@ static void* mqtt_main_thread(void* arg) {
                 error);
         }
 
+        rc_backoff_algorithm_set_result(&mqtt->reconnect_backoff, ret == 0);
+
         if (ret != 0) {
-            if (mqtt->cur_reconnect_interval_index != INTERVAL_COUNT - 1) {
-                mqtt->cur_reconnect_interval_index++;
-                LOGI(MQ_TAG, "reconn interval adjust to %d sec",
-                     _mqtt_reconnect_interval
-                         [mqtt->cur_reconnect_interval_index]);
-            }
             continue;
         }
 
         // SUBSCRIBE
         if (_client_subscribe(mqtt) != 0) {
             mqtt_client_disconnect(mqtt);
-            break;
+            continue;
         }
 
         rc_mutex_lock(mqtt->mobject);
         mqtt->is_connected = 1;
-        mqtt->last_reconnect_time = (int)time(NULL);
-        mqtt->cur_reconnect_interval_index = 0;
         rc_mutex_unlock(mqtt->mobject);
 
         while (!mqtt->is_exit && mqtt_sync(&mqtt->client) == MQTT_OK) {

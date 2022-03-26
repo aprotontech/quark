@@ -22,7 +22,7 @@ int is_network_available(rc_network_manager nm, int level) {
     return mgr->status;
 }
 
-int network_set_available(rc_network_manager nm, int available) {
+int network_set_available(rc_network_manager nm, int level, int available) {
     DECLEAR_REAL_VALUE(rc_network_manager_t, mgr, nm);
     mgr->status = available;
     return 0;

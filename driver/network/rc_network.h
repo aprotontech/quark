@@ -18,10 +18,16 @@
 
 typedef void* rc_network_manager;
 
+typedef enum _rc_network_level {
+    NETWORK_LOCAL = 0,  // local network, eg: wifi
+    NETWORK_INTERNET = 1,
+    NETWORK_KEEPALIVE = 2,
+} rc_network_level;
+
 // is network available
 int is_network_available(rc_network_manager mgr, int level);
 
-int network_set_available(rc_network_manager mgr, int available);
+int network_set_available(rc_network_manager mgr, int level, int available);
 
 rc_network_manager network_manager_init(int current_status);
 

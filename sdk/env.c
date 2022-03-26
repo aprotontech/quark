@@ -16,6 +16,7 @@
 #include "env.h"
 
 #include "property.h"
+#include "location.h"
 
 #if defined(__QUARK_FREERTOS__)
 #include "esp_system.h"
@@ -34,6 +35,7 @@ int sync_server_time(rc_timer timer, void* dev);
 int rc_enable_ntp_sync_time();
 int device_regist(rc_runtime_t* env);
 int append_hardware_info(rc_runtime_t* env);
+int auto_report_location_time(rc_timer timer, void* dev);
 
 int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status);
 
@@ -94,6 +96,13 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info,
     env->netmgr = network_manager_init(0);
     if (env->netmgr == NULL) {
         LOGI(SDK_TAG, "sdk init failed, net manager init failed");
+        env_free(env);
+        return RC_ERROR_SDK_INIT;
+    }
+
+    env->locmgr = location_manager_init(env);
+    if (env->locmgr == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, location manager init failed");
         env_free(env);
         return RC_ERROR_SDK_INIT;
     }
@@ -246,6 +255,11 @@ void env_free(rc_runtime_t* env) {
     if (env->wifimgr != NULL) {
         wifi_manager_uninit(env->wifimgr);
         env->wifimgr = NULL;
+    }
+
+    if (env->locmgr != NULL) {
+        location_manager_uninit(env->locmgr);
+        env->locmgr = NULL;
     }
 
     if (env == _env) {

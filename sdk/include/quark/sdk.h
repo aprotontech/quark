@@ -76,12 +76,15 @@ typedef struct _rc_settings_t {
     int property_change_report;
     int porperty_retry_interval;
 
+    int location_report_interval;  // second
+
     char enable_ntp_time_sync;
     char new_thread_init;
     char enable_keepalive;
     char iot_platform;  // rc_iot_platform_type
     char max_device_retry_times;
     char auto_watch_wifi_status;
+    char auto_report_location;
 
 } rc_settings_t;
 
@@ -145,5 +148,17 @@ int rc_downloader_get_status(rc_downloader downloader, int* total,
                              int* current);
 
 int rc_downloader_uninit(rc_downloader downloader);
+
+////////////////////////
+// Location
+typedef struct _rc_location_t {
+    time_t update_time;
+    double latitude;
+    double longitude;
+} rc_location_t;
+
+int rc_report_location();
+
+rc_location_t* rc_get_current_location();
 
 #endif

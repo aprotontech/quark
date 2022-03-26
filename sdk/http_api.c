@@ -28,6 +28,7 @@ int _get_http_service_url(rc_runtime_t* env, char url[API_URL_LENGTH],
     rc_service_protocol_info_t info;
 
     if (rc_service_query(env->ansmgr, service_name, "http", &info) == 0) {
+        strcpy(ip, info.ip);
         strcat(url, info.host);
         if (info.port != 80) {
             snprintf(url, API_URL_LENGTH, "http://%s:%d%s%s", info.host,
@@ -36,8 +37,6 @@ int _get_http_service_url(rc_runtime_t* env, char url[API_URL_LENGTH],
             snprintf(url, API_URL_LENGTH, "http://%s%s%s", info.host,
                      info.prefix, path);
         }
-
-        strcpy(ip, info.ip);
 
         return 0;
     }
@@ -60,10 +59,14 @@ int rc_http_quark_post(const char* service_name, const char* path,
         return RC_ERROR_SDK_INIT;
     }
 
+    LOGI(SDK_TAG, "rc_http_quark_post(%s)(%s)", service_name, path);
+
     if (_get_http_service_url(env, url, ip, service_name, path) != 0) {
         LOGW(SDK_TAG, "query service(%s) info failed", service_name);
         return -1;
     }
+
+    LOGI(SDK_TAG, "url(%s) --> ip(%s)", url, ip);
 
     snprintf(header, sizeof(header), "IOT-DEVICE-SESSION: %s",
              get_device_session_token(env->device));
@@ -74,7 +77,7 @@ int rc_http_quark_post(const char* service_name, const char* path,
              newReqId(reqId));
 
     LOGI(SDK_TAG, "http request body(%s)", body);
-    rc = http_post(env->httpmgr, url, NULL, p, 1, body, strlen(body), timeout,
+    rc = http_post(env->httpmgr, url, ip, p, 1, body, strlen(body), timeout,
                    response);
     if (rc == 200) {
         if (need_refresh_token(rc_buf_head_ptr(response))) {

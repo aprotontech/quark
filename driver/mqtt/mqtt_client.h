@@ -20,6 +20,7 @@
 #include "rc_event.h"
 #include "rc_mutex.h"
 #include "rc_thread.h"
+#include "backoff.h"
 
 #include "mqtt.h"
 
@@ -86,8 +87,7 @@ typedef struct _rc_mqtt_client_t {
     mqtt_connect_callback on_connect;
 
     // auto reconnection
-    short cur_reconnect_interval_index;
-    int last_reconnect_time;
+    backoff_algorithm_t reconnect_backoff;
 
     short force_re_sub;
     short has_sub_failed;
