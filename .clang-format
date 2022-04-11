@@ -1,0 +1,14 @@
+Language: Cpp
+BasedOnStyle: Google
+IndentWidth: 4
+IndentCaseLabels: false
+AccessModifierOffset: -4
+ColumnLimit: 80
+
+AlignTrailingComments: true
+
+SortIncludes: false
+
+MacroBlockBegin: "^BEGIN_MAPPING_JSON|JSON_ARRAY_FOREACH|BEGIN_EXTRACT_JSON|BEGIN_JSON_OBJECT$"
+
+MacroBlockEnd: "^END_MAPPING_JSON|JSON_ARRAY_END_FOREACH|END_EXTRACT_JSON|END_JSON_OBJECT$"

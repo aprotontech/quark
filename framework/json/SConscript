@@ -1,0 +1,17 @@
+Import('RTT_ROOT')
+Import('rtconfig')
+Import('env')
+from building import *
+
+cwd = GetCurrentDir()
+src = Glob('*.c')
+
+include = [cwd, cwd + '/include']
+lib = ['json']
+libpath  = [cwd]
+
+env.StaticLibrary([cwd + '/json'], src)
+
+group = DefineGroup('json', src, depend = [''], CPPPATH = include, LIBS = lib, LIBPATH = libpath)
+
+Return('group')
