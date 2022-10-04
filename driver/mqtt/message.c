@@ -148,7 +148,7 @@ int _get_from_type_id(const char* topic, char from[FROM_LENGTH],
     }
 
     for (i = strlen(m + 1); i > 0; --i) {
-        if (!isalnum(m[i])) return -1;
+        if (!isalnum((int)(m[i]))) return -1;
     }
     return 0;
 }

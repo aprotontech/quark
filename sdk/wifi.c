@@ -12,14 +12,14 @@ int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status) {
         const char* token = get_device_session_token(env->device);
         if (token == NULL || token[0] == '\0') {
             // device is not registed, so do it
-            rc_device_refresh_atonce(env->device, 1);
+            rc_device_refresh_atonce(env->device, 100);
         }
 
         rc_service_sync(env->ansmgr);
 
         if (time(NULL) < 1000000000 &&
             env->sync_timer != NULL) {                  // time is not synced
-            rc_timer_ahead_once(env->sync_timer, 100);  // sync time atonce
+            rc_timer_ahead_once(env->sync_timer, 10);  // sync time atonce
         }
 
         char ip[16] = {0};

@@ -268,7 +268,7 @@ int http_request_set_opt(http_request req, int type, void* opt) {
 
 int http_request_on_recv(http_request _request, char* buf, size_t len) {
     rc_http_request_t* request = (rc_http_request_t*)_request;
-    if (isprint(buf[0])) {  // skip un-print body
+    if (isprint((int)(buf[0]))) {  // skip un-print body
         LOGI(RC_TAG, "response: %s", buf);
     }
 

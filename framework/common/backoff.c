@@ -52,7 +52,7 @@ int rc_backoff_algorithm_can_retry(backoff_algorithm_t* alg) {
     }
 
     time_t t = alg->last_retry_time;
-    if (alg->status) {
+    if (alg->status) { // success
         if (alg->suc_retry_interval < 0) {
             return 0;
         }
