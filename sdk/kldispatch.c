@@ -67,7 +67,7 @@ int sdk_mqtt_status_callback(rc_mqtt_client client, int status,
                              const char* cause) {
     rc_runtime_t* env = get_env_instance();
     if (env != NULL && env->mqtt == client) {
-        network_set_available(env->netmgr, NETWORK_KEEPALIVE,
+        network_set_available(env->netmgr, NETWORK_MASK_KEEPALIVE,
                               status == MQTT_STATUS_CONNECTED);
 
         if (env->kl_change != NULL) {
@@ -104,7 +104,7 @@ int mqtt_client_init(rc_runtime_t* env, const char* app_id,
 
         snprintf(rc_buf_tail_ptr(buff), RC_BUF_LEFT_SIZE(buff),
                  "%s%s;%s;%06d;%lld", settings->app_id, client_id, "12010126",
-                 rand(), time(NULL) + 600);
+                 rand(), (long long int)time(NULL) + 600);
     }
 
     env->mqtt = rc_mqtt_create(host, port, app_id, client_id, username,

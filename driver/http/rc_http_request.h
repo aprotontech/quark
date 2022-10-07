@@ -48,12 +48,29 @@ enum {
     HTTP_REQUEST_POST = 3,
 };
 
+typedef struct _http_request_url_info_t {
+    char* host;
+    char* path;
+    char* ip;
+    int schema;  // 0-http, 1-https
+    int port;
+    // struct sockaddr_in addr;
+} http_request_url_info_t;
+
 typedef int (*http_body_callback)(http_request request, int status_code,
                                   const char* body, int len);
 
 ///////////////// open api
 http_request http_request_init(http_manager mgr, const char* url,
                                const char* ipaddr, int method);
+
+http_request http_request_init_url(http_manager mgr,
+                                   http_request_url_info_t* info, int method);
+
+http_request http_request_init_raw(http_manager mgr, int is_https,
+                                   const char* host, int host_len, int port,
+                                   const char* path, int path_len, int method,
+                                   const char* ipaddr);
 
 int http_request_set_opt(http_request request, int type, void* opt);
 

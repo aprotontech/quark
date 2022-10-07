@@ -41,8 +41,7 @@ int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status);
 
 rc_runtime_t* get_env_instance() { return _env; }
 
-int rc_sdk_init(const char* env_name, int enable_debug_client_info,
-                rc_settings_t* settings) {
+int rc_sdk_init(rc_settings_t* settings) {
     rc_runtime_t* env = NULL;
 
     if (_env != NULL) {
@@ -51,9 +50,6 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info,
     }
 
     LOGW(SDK_TAG, "quark sdk start to init");
-    if (settings->enable_ntp_time_sync) {
-        rc_enable_ntp_sync_time();
-    }
 
     env = (rc_runtime_t*)rc_malloc(sizeof(rc_runtime_t) + ENV_BUFF_SIZE);
     memset(env, 0, sizeof(rc_runtime_t));
@@ -69,6 +65,10 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info,
         env->local.default_service_url = env->settings.service_url;
     } else {
         env->local.default_service_url = QUARK_API_URL;
+    }
+
+    if (env->settings.enable_ntp_time_sync) {
+        rc_enable_ntp_sync_time();
     }
 
     // hardware info
@@ -100,9 +100,9 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info,
         return RC_ERROR_SDK_INIT;
     }
 
-    env->locmgr = location_manager_init(env);
-    if (env->locmgr == NULL) {
-        LOGI(SDK_TAG, "sdk init failed, location manager init failed");
+    env->wifimgr = wifi_manager_init(quark_on_wifi_status_changed);
+    if (env->wifimgr == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, wifi manager init failed");
         env_free(env);
         return RC_ERROR_SDK_INIT;
     }
@@ -123,11 +123,36 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info,
     }
 
     // load local config
-    rc_service_local_config(env->ansmgr, env_name);
+    if (env->settings.default_svr_config != NULL) {
+        rc_service_local_config(env->ansmgr, env->settings.default_svr_config);
+    }
 
-    env->wifimgr = wifi_manager_init(quark_on_wifi_status_changed);
-    if (env->wifimgr == NULL) {
-        LOGI(SDK_TAG, "sdk init failed, wifi manager init failed");
+    ///////////////////////////////////////////////////
+    // DEVICE
+    env->device =
+        rc_device_init(env->httpmgr, (rc_hardware_info*)env->settings.hardware);
+
+    if (env->device == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, device manager init failed");
+        return RC_ERROR_SDK_INIT;
+    }
+
+    ///////////////////////////////////////////////////
+    // PROPERTY
+    env->properties =
+        property_manager_init(env, settings->property_change_report,
+                              settings->porperty_retry_interval);
+    if (env->properties == NULL) {
+        LOGE(SDK_TAG, "property_manager_init failed");
+        return RC_ERROR_SDK_INIT;
+    }
+
+    // define localip property
+    rc_property_define("localIp", RC_PROPERTY_STRING_VALUE, NULL, NULL);
+
+    env->locmgr = location_manager_init(env);
+    if (env->locmgr == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, location manager init failed");
         env_free(env);
         return RC_ERROR_SDK_INIT;
     }

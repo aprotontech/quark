@@ -20,6 +20,7 @@
 #include "hashmap.h"
 #include "rc_crypt.h"
 #include "rc_mutex.h"
+#include "backoff.h"
 #include "rc_ans.h"
 
 #define SC_TAG "[Service]"
@@ -40,6 +41,7 @@ typedef struct _rcservice_mgr_t {
     rsa_crypt rsa;
     http_manager httpmgr;
     rc_network_manager netmgr;
+    backoff_algorithm_t bkg;
 
     rc_timer timer;
 

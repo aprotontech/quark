@@ -57,7 +57,9 @@ int rc_service_local_config(ans_service ans, const char* env_name);
 int rc_service_dns_resolve(ans_service ans, const char* host,
                            struct in_addr* ip);
 
-int rc_service_sync(ans_service ans);
+int rc_service_sync(ans_service ans, int force);
+
+int rc_service_is_synced(ans_service ans);
 
 int rc_service_query(ans_service ans, const char* name, const char* protocol,
                      rc_service_protocol_info_t* info);

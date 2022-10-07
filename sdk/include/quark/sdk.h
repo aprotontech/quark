@@ -50,6 +50,7 @@ typedef void* rc_hardware_t;
 
 typedef struct _rc_settings_t {
     char* service_url;
+    char* default_svr_config;  // default service config
     // input settings
     char* app_id;
     char* client_id;
@@ -78,13 +79,14 @@ typedef struct _rc_settings_t {
 
     int location_report_interval;  // second
 
+    // enable ntp time
     char enable_ntp_time_sync;
-    char new_thread_init;
     char enable_keepalive;
     char iot_platform;  // rc_iot_platform_type
     char max_device_retry_times;
     char auto_watch_wifi_status;
     char auto_report_location;
+    char max_ans_wait_time_sec;  // max wait time, -1: forever
 
 } rc_settings_t;
 
@@ -92,8 +94,7 @@ const char* rc_sdk_version();
 
 rc_settings_t* rc_settings_init(rc_settings_t* setting);
 
-int rc_sdk_init(const char* env_name, int enable_debug_client_info,
-                rc_settings_t* settings);
+int rc_sdk_init(rc_settings_t* settings);
 
 int rc_sdk_uninit();
 

@@ -24,9 +24,12 @@
 
 #define ANS_SERVICE_SIZE (((sizeof(rcservice_mgr_t) + 1023) / 1024) * 1024)
 
+static int __ans_fail_intervals[] = {2, 8, 32, 128, 512};
+
 extern char* ans_build_request_json_body(const char* app_id,
                                          const char* device_id);
 extern int parse_json_config(const char* json, map_t* smap);
+int ans_service_do_sync(rcservice_mgr_t* mgr);
 
 int free_hash_item(any_t n, const char* key, any_t val) {
     rc_free(val);
@@ -112,11 +115,26 @@ int merge_new_services(rcservice_mgr_t* mgr, map_t new_services,
     return 0;
 }
 
-int rc_service_sync(ans_service ans) {
+int rc_service_is_synced(ans_service ans) {
+    DECLEAR_REAL_VALUE(rcservice_mgr_t, mgr, ans);
+    int status = 0;
+    rc_mutex_lock(mgr->mobject);
+    status = mgr->sync_status;
+    rc_mutex_unlock(mgr->mobject);
+    return status == 2;
+}
+
+int rc_service_sync(ans_service ans, int force) {
     DECLEAR_REAL_VALUE(rcservice_mgr_t, mgr, ans);
 
-    if (mgr->timer != NULL) {
+    if (mgr->timer != NULL && !force) {
         rc_timer_ahead_once(mgr->timer, 10);
+    } else {
+        ans_service_do_sync(mgr);
+        if (mgr->sync_status != 2) {
+            LOGW(SC_TAG, "ans service is not synced");
+            return -1;
+        }
     }
 
     return 0;
@@ -165,19 +183,19 @@ int ans_service_do_sync(rcservice_mgr_t* mgr) {
 // SERVICE INIT/UNINIT
 static int ans_check_timer(rc_timer timer, void* usr_data) {
     DECLEAR_REAL_VALUE(rcservice_mgr_t, mgr, usr_data);
-    if (network_is_available(mgr->netmgr, NETWORK_LOCAL) == 0) {
+    if (network_is_available(mgr->netmgr, NETWORK_MASK_LOCAL) == 0) {
         return 0;
     }
 
     // network is ok now
+    if (!rc_backoff_algorithm_can_retry(&mgr->bkg)) {
+        LOGD(SC_TAG, "ans service backoff try later");
+        return 0;
+    }
 
     ans_service_do_sync(mgr);
 
-    if (mgr->sync_status == 2) {
-        LOGI(SC_TAG, "finish query services, so close the timer");
-        rc_timer_stop(mgr->timer);
-        mgr->timer = NULL;
-    }
+    rc_backoff_algorithm_set_result(&mgr->bkg, mgr->sync_status == 2);
 
     return 0;
 }
@@ -207,9 +225,12 @@ ans_service rc_service_init(const char* app_id, const char* device_id,
     mgr->httpmgr = hmgr;
     mgr->netmgr = nmgr;
 
+    rc_backoff_algorithm_init(&mgr->bkg, __ans_fail_intervals,
+                              sizeof(__ans_fail_intervals) / sizeof(int),
+                              12 * 3600);
+
     mgr->mobject = rc_mutex_create(NULL);
     mgr->timer = rc_timer_create(tmgr, 1000, 1000, ans_check_timer, mgr);
-    rc_timer_ahead_once(mgr->timer, 10);
 
     LOGI(SC_TAG, "new ans service(%p)", mgr);
     return mgr;

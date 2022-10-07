@@ -24,12 +24,12 @@ typedef struct _local_service_config_t {
 
 const local_service_config_t _local_configs[] = {
     {.env_name = "test",
-     .config = "{\"rc\":0,\"default\":{\"host\":\"192.168.3.24\",\"ips\":["
-               "\"192.168.3.24\"],\"prefix\":"
-               "\"\\/\",\"protocols\":{\"http\":80,\"mqtt\":1883}}}"},
+     .config = "{\"rc\":0,\"default\":{\"host\":\"192.168.3.27\",\"ips\":["
+               "\"192.168.3.27\"],\"prefix\":"
+               "\"\\/\",\"protocols\":{\"http\":8080,\"mqtt\":1883}}}"},
     {.env_name = "online",
-     .config = "{\"rc\":0,\"default\":{\"host\":\"api.aproton.tech\",\"ips\":["
-               "\"82.157.138.167\"],\"prefix\":\"\\/"
+     .config = "{\"rc\":0,\"default\":{\"host\":\"home.aproton.tech\",\"ips\":["
+               "\"192.168.3.27\"],\"prefix\":\"\\/"
                "\",\"protocols\":{\"http\":80,\"mqtt\":1883}}}"}};
 
 extern int parse_json_config(const char* json, map_t* smap);

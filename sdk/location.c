@@ -139,7 +139,7 @@ int auto_report_location_time(rc_timer timer, void* dev) {
         DECLEAR_REAL_VALUE(rc_location_manager_t, mgr, env->locmgr);
         if (env->settings.auto_report_location &&
             rc_backoff_algorithm_can_retry(&mgr->location_report_backoff) &&
-            network_is_available(env->netmgr, NETWORK_SESSION)) {
+            network_is_available(env->netmgr, NETWORK_MASK_SESSION)) {
             int rc = rc_report_location();
             rc_backoff_algorithm_set_result(&mgr->location_report_backoff,
                                             rc == 0);

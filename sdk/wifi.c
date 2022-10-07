@@ -6,7 +6,7 @@ int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status) {
         env->settings.wifi_status_callback(wifi_status == RC_WIFI_CONNECTED);
     }
 
-    network_set_available(env->netmgr, NETWORK_LOCAL,
+    network_set_available(env->netmgr, NETWORK_MASK_LOCAL,
                           wifi_status == RC_WIFI_CONNECTED);
     if (wifi_status == RC_WIFI_CONNECTED) {
         const char* token = get_device_session_token(env->device);
@@ -15,10 +15,10 @@ int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status) {
             rc_device_refresh_atonce(env->device, 100);
         }
 
-        rc_service_sync(env->ansmgr);
+        rc_service_sync(env->ansmgr, 0);
 
         if (time(NULL) < 1000000000 &&
-            env->sync_timer != NULL) {                  // time is not synced
+            env->sync_timer != NULL) {                 // time is not synced
             rc_timer_ahead_once(env->sync_timer, 10);  // sync time atonce
         }
 

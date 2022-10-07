@@ -23,10 +23,10 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret,
     settings.uuid = NULL;
     settings.enable_keepalive = 1;
     settings.iot_platform = RC_IOT_QUARK;
-    settings.service_url = "http://192.168.3.24:8080/api";
+    settings.service_url = "http://192.168.3.27/api";
 
     // init sdk
-    RC_EXCEPT_SUCCESS(rc_sdk_init("test", 1, &settings));
+    RC_EXCEPT_SUCCESS(rc_sdk_init(&settings));
 
     // get wifi status, if is not connected, do connect
     for (i = 5; i >= 0; i--) {
