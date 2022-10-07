@@ -7,6 +7,11 @@ extern int httpget_other_service_url();
 extern int set_next_thread_params(const char* thread_name, int stack_size,
                                   int thread_priority);
 
+char __test_service_config[] =
+    "{\"rc\":0,\"default\":{\"host\":\"127.0.0.1\",\"ips\":["
+    "\"127.0.0.1\"],\"prefix\":"
+    "\"\\/api\",\"protocols\":{\"http\":8080,\"mqtt\":10883}}}";
+
 int watch_wifi_status_change(int connected);
 
 int mock_virtual_device(char* env, char* app_id, char* app_secret,
@@ -23,7 +28,8 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret,
     settings.uuid = NULL;
     settings.enable_keepalive = 1;
     settings.iot_platform = RC_IOT_QUARK;
-    settings.service_url = "http://192.168.3.27/api";
+    settings.service_url = "http://127.0.0.1:8080/api";
+    settings.default_svr_config = __test_service_config;
 
     // init sdk
     RC_EXCEPT_SUCCESS(rc_sdk_init(&settings));
@@ -35,7 +41,7 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret,
         rc_sleep(1000);
     }
 
-    RC_EXCEPT_SUCCESS(rc_set_wifi("kog_2.4G", "huxiaolong@2018"));
+    RC_EXCEPT_SUCCESS(rc_set_wifi("aproton", "aproton@2021"));
 
     // entry working thread
     for (i = 10; i < test_time_sec; ++i) {

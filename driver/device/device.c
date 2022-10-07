@@ -223,6 +223,7 @@ int regist_device(rc_device_t* device, int now, const char* signature) {
 
     // init request body
     rc_buf_t rbody = rc_buf_usrdata(json_req, strlen(json_req));
+    rbody.length = rbody.total;
     rbody.immutable = 1;
     rbody.free = 1;  // will free buffer after request done
 

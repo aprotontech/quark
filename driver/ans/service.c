@@ -93,6 +93,7 @@ static int update_mgr_services(any_t n, const char* key, any_t val) {
     }
 
     hashmap_put(context->mgr->smap, service->service, service);
+    LOGI(SC_TAG, "update service(%s)", key);
 
     return 0;
 }
@@ -295,7 +296,6 @@ int rc_service_query(ans_service ans, const char* name, const char* protocol,
     } else if (MAP_OK == hashmap_get(mgr->smap, DEFAULT_SERVICE, &val) &&
                val != NULL) {
         rc_service_t* service = (rc_service_t*)val;
-        // find the protocol
         if (MAP_OK == hashmap_get(service->protocols, (char*)protocol, &val)) {
             fill_protocol_info(service, (rc_service_protocol_t*)val, info);
             rc_mutex_unlock(mgr->mobject);

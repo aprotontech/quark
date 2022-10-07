@@ -61,12 +61,6 @@ int rc_sdk_init(rc_settings_t* settings) {
     memcpy(&env->settings, settings, sizeof(env->settings));
     // env->time_update = settings->time_update;
 
-    if (env->settings.service_url != NULL) {  // use input url
-        env->local.default_service_url = env->settings.service_url;
-    } else {
-        env->local.default_service_url = QUARK_API_URL;
-    }
-
     if (env->settings.enable_ntp_time_sync) {
         rc_enable_ntp_sync_time();
     }
@@ -107,9 +101,13 @@ int rc_sdk_init(rc_settings_t* settings) {
         return RC_ERROR_SDK_INIT;
     }
 
-    {  // init ans service
+    if (env->settings.service_url == NULL) {  // use input url
+        env_free(env);
+        LOGI(SDK_TAG, "sdk init failed, service url is empty");
+        return RC_ERROR_SDK_INIT;
+    } else {  // init ans service
         char url[100] = {0};
-        snprintf(url, sizeof(url), "%s%s", env->local.default_service_url,
+        snprintf(url, sizeof(url), "%s%s", env->settings.service_url,
                  ANS_QUERY_PATH);
         env->ansmgr =
             rc_service_init(env->settings.app_id, env->settings.uuid, url,

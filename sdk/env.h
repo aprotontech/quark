@@ -32,22 +32,15 @@
 
 #define SDK_TAG "[QUARK]"
 #define NOTIFY_TIME_DIFF 60
-#define QUARK_API_URL "http://api.aproton.tech"
 
 typedef void* rc_mqtt_client;
 typedef void* protontech;
 
-typedef struct _rc_local_config_t {
-    char* name;
-    char* default_service_url;
-    int service_count;
-} rc_local_config_t;
 
 typedef void* property_manager;
 typedef void* location_manager;
 
 typedef struct _rc_runtime_t {
-    rc_local_config_t local;
     rc_settings_t settings;
 
     aidevice device;

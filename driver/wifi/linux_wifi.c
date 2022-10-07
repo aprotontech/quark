@@ -55,4 +55,12 @@ int wifi_manager_connect(wifi_manager wm, const char* ssid,
     return 0;
 }
 
+int _wifi_manager_init(wifi_manager_t* mgr) {
+    return 0;
+}
+
+int wifi_manager_scan_ap(wifi_manager wm, rc_wifi_scan_result_t* result) {
+    return 0;
+}
+
 #endif

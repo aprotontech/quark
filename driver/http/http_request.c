@@ -98,7 +98,7 @@ http_request http_request_init(http_manager mgr, const char* raw_url,
     char buf[10] = {0};
     int port = 0;
     int is_https = 0;
-    char* path = NULL;
+    const char* path = NULL;
     struct http_parser_url url;
     int ret = http_parser_parse_url(raw_url, strlen(raw_url), 0, &url);
     if (ret != 0) {
@@ -155,7 +155,7 @@ http_request http_request_init(http_manager mgr, const char* raw_url,
 http_request http_request_init_url(http_manager mgr,
                                    http_request_url_info_t* info, int method) {
     if (info == NULL) {
-        return -1;
+        return NULL;
     }
 
     return http_request_init_raw(mgr, info->schema, info->host,

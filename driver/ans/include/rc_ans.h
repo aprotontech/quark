@@ -52,7 +52,7 @@ ans_service rc_service_init(const char* app_id, const char* device_id,
                             rc_timer_manager tmgr, rc_network_manager* nmgr);
 
 // load local configs. if service exists, skip it
-int rc_service_local_config(ans_service ans, const char* env_name);
+int rc_service_local_config(ans_service ans, const char* env_config);
 
 int rc_service_dns_resolve(ans_service ans, const char* host,
                            struct in_addr* ip);

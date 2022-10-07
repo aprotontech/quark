@@ -238,6 +238,7 @@ int on_property_timer(rc_timer timer, void* usr_data) {
     if (network_is_available(mgr->nm, NETWORK_MASK_SESSION) == 0) {
         // device not registed, retry later
         LOGI(SDK_TAG, "device is not registed, so skip report attr");
+        return 0;
     }
 
     if (get_device_client_id(mgr->device) || get_device_session_token(mgr->device) == NULL) {

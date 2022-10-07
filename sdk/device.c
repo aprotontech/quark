@@ -58,7 +58,7 @@ int device_regist(rc_runtime_t* env) {
     }
 
     // get device url from ans service
-    if (rc_service_query(env->ansmgr, "DEVICE", "HTTP", &info) != 0) {
+    if (rc_service_query(env->ansmgr, "DEVICE", "http", &info) != 0) {
         LOGW(SDK_TAG, "sdk init get device service failed");
         return RC_ERROR_REGIST_DEVICE;
     }
