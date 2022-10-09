@@ -94,7 +94,7 @@ const char* rc_sdk_version();
 
 rc_settings_t* rc_settings_init(rc_settings_t* setting);
 
-int rc_sdk_init(rc_settings_t* settings);
+int rc_sdk_init(rc_settings_t* settings, int regist_sync);
 
 int rc_sdk_uninit();
 

@@ -57,6 +57,8 @@ typedef struct _http_request_url_info_t {
     // struct sockaddr_in addr;
 } http_request_url_info_t;
 
+struct http_parser_url;
+
 typedef int (*http_body_callback)(http_request request, int status_code,
                                   const char* body, int len);
 
@@ -71,6 +73,9 @@ http_request http_request_init_raw(http_manager mgr, int is_https,
                                    const char* host, int host_len, int port,
                                    const char* path, int path_len, int method,
                                    const char* ipaddr);
+
+int http_url_parse(const char* raw_url, struct http_parser_url* url,
+                   int* schema);
 
 int http_request_set_opt(http_request request, int type, void* opt);
 

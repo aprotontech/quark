@@ -93,28 +93,26 @@ int http_request_build_header(rc_http_request_t* request);
 extern struct timeval* get_tm_diff(const struct timeval* timeout,
                                    struct timeval* result);
 
-http_request http_request_init(http_manager mgr, const char* raw_url,
-                               const char* ipaddr, int method) {
+int http_url_parse(const char* raw_url, struct http_parser_url* url,
+                   int* schema) {
     char buf[10] = {0};
     int port = 0;
     int is_https = 0;
-    const char* path = NULL;
-    struct http_parser_url url;
-    int ret = http_parser_parse_url(raw_url, strlen(raw_url), 0, &url);
+    int ret = http_parser_parse_url(raw_url, strlen(raw_url), 0, url);
     if (ret != 0) {
         LOGI(RC_TAG, "http_parser_parse_url(%s) failed,ret(%d)", raw_url, ret);
-        return NULL;
+        return RC_ERROR_PARSE_URL;
     }
 
-    if (url.field_set & (1 << UF_SCHEMA)) {
-        if (url.field_data[UF_SCHEMA].len >= sizeof(buf) - 1) {
+    if (url->field_set & (1 << UF_SCHEMA)) {
+        if (url->field_data[UF_SCHEMA].len >= sizeof(buf) - 1) {
             LOGI(RC_TAG,
                  "http_parser_parse_url(%s) failed, schema is invalidate",
                  raw_url);
-            return NULL;
+            return RC_ERROR_PARSE_URL;
         }
-        memcpy(buf, raw_url + url.field_data[UF_SCHEMA].off,
-               url.field_data[UF_SCHEMA].len);
+        memcpy(buf, raw_url + url->field_data[UF_SCHEMA].off,
+               url->field_data[UF_SCHEMA].len);
         for (ret = 0; buf[ret] != '\0'; ++ret) {
             if (buf[ret] >= 'A' && buf[ret] <= 'Z') {
                 buf[ret] += 32;  // to lower
@@ -123,33 +121,51 @@ http_request http_request_init(http_manager mgr, const char* raw_url,
         is_https = strcmp(buf, "https") == 0;
     }
 
-    if (!(url.field_set & (1 << UF_HOST))) {
+    if (!(url->field_set & (1 << UF_HOST))) {
         LOGI(RC_TAG, "http_parser_parse_url(%s) failed, not found host",
              raw_url);
-        return NULL;
+        return RC_ERROR_PARSE_URL;
     }
 
-    if (url.field_set & (1 << UF_PORT)) {
-        if (url.field_data[UF_PORT].len >= sizeof(buf) - 1) {
+    if (url->field_set & (1 << UF_PORT)) {
+        if (url->field_data[UF_PORT].len >= sizeof(buf) - 1) {
             LOGI(RC_TAG, "http_parser_parse_url(%s) failed, port is invalidate",
                  raw_url);
-            return NULL;
+            return RC_ERROR_PARSE_URL;
         }
-        memcpy(buf, raw_url + url.field_data[UF_PORT].off,
-               url.field_data[UF_PORT].len);
+        memcpy(buf, raw_url + url->field_data[UF_PORT].off,
+               url->field_data[UF_PORT].len);
         port = atoi(buf);
     } else {
         port = is_https ? 443 : 80;
     }
 
-    if (url.field_set & (1 << UF_PATH)) {
-        path = raw_url + url.field_data[UF_PATH].off;
+    if ((url->field_set & (1 << UF_PATH)) == 0) {
+        url->field_data[UF_PATH].off = 0;
+        url->field_data[UF_PATH].len = 0;
+    }
+
+    url->port = port;
+    if (schema != NULL) *schema = is_https;
+
+    return 0;
+}
+
+http_request http_request_init(http_manager mgr, const char* raw_url,
+                               const char* ipaddr, int method) {
+    int is_https = 0;
+    const char* path = NULL;
+    struct http_parser_url url;
+
+    if (http_url_parse(raw_url, &url, &is_https) != 0) {
+        return NULL;
     }
 
     return http_request_init_raw(mgr, is_https,
                                  raw_url + url.field_data[UF_HOST].off,
-                                 url.field_data[UF_HOST].len, port, path,
-                                 url.field_data[UF_PATH].len, method, NULL);
+                                 url.field_data[UF_HOST].len, url.port,
+                                 raw_url + url.field_data[UF_PATH].off,
+                                 url.field_data[UF_PATH].len, method, ipaddr);
 }
 
 http_request http_request_init_url(http_manager mgr,

@@ -26,7 +26,6 @@
 #endif
 
 #define ENV_BUFF_SIZE 64
-#define ANS_QUERY_PATH "/device/dns"
 
 rc_runtime_t* _env;
 void env_free(rc_runtime_t* env);
@@ -41,7 +40,7 @@ int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status);
 
 rc_runtime_t* get_env_instance() { return _env; }
 
-int rc_sdk_init(rc_settings_t* settings) {
+int rc_sdk_init(rc_settings_t* settings, int regist_sync) {
     rc_runtime_t* env = NULL;
 
     if (_env != NULL) {
@@ -81,8 +80,8 @@ int rc_sdk_init(rc_settings_t* settings) {
         return RC_ERROR_SDK_INIT;
     }
 
-    if (env->time_update != NULL) {
-        int randtm = (rand() % 1800) + 7200;
+    if (env->time_update != NULL || settings->enable_ntp_time_sync) {
+        int randtm = (rand() % 1800) + 21600;
         env->sync_timer = rc_timer_create(env->timermgr, 1000, randtm * 1000,
                                           sync_server_time, env);
     }
@@ -94,6 +93,8 @@ int rc_sdk_init(rc_settings_t* settings) {
         return RC_ERROR_SDK_INIT;
     }
 
+    ///////////////////////////////////////////////////
+    // WIFI
     env->wifimgr = wifi_manager_init(quark_on_wifi_status_changed);
     if (env->wifimgr == NULL) {
         LOGI(SDK_TAG, "sdk init failed, wifi manager init failed");
@@ -101,17 +102,16 @@ int rc_sdk_init(rc_settings_t* settings) {
         return RC_ERROR_SDK_INIT;
     }
 
+    ///////////////////////////////////////////////////
+    // ANS
     if (env->settings.service_url == NULL) {  // use input url
         env_free(env);
         LOGI(SDK_TAG, "sdk init failed, service url is empty");
         return RC_ERROR_SDK_INIT;
     } else {  // init ans service
-        char url[100] = {0};
-        snprintf(url, sizeof(url), "%s%s", env->settings.service_url,
-                 ANS_QUERY_PATH);
-        env->ansmgr =
-            rc_service_init(env->settings.app_id, env->settings.uuid, url,
-                            env->httpmgr, env->timermgr, env->netmgr);
+        env->ansmgr = rc_service_init(env->settings.app_id, env->settings.uuid,
+                                      env->settings.service_url, env->httpmgr,
+                                      env->timermgr, env->netmgr);
     }
 
     if (env->ansmgr == NULL) {
@@ -155,7 +155,7 @@ int rc_sdk_init(rc_settings_t* settings) {
         return RC_ERROR_SDK_INIT;
     }
 
-    if (device_regist(env) != 0) {
+    if (regist_sync && device_regist(env) != 0) {
         env_free(env);
         return RC_ERROR_SDK_INIT;
     }
@@ -265,6 +265,11 @@ void env_free(rc_runtime_t* env) {
         env->ansmgr = NULL;
     }
 
+    if (env->locmgr != NULL) {
+        location_manager_uninit(env->locmgr);
+        env->locmgr = NULL;
+    }
+
     if (env->httpmgr != NULL) {
         http_manager_uninit(env->httpmgr);
         env->httpmgr = NULL;
@@ -278,11 +283,6 @@ void env_free(rc_runtime_t* env) {
     if (env->wifimgr != NULL) {
         wifi_manager_uninit(env->wifimgr);
         env->wifimgr = NULL;
-    }
-
-    if (env->locmgr != NULL) {
-        location_manager_uninit(env->locmgr);
-        env->locmgr = NULL;
     }
 
     if (env == _env) {

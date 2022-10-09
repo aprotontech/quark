@@ -28,11 +28,12 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret,
     settings.uuid = NULL;
     settings.enable_keepalive = 1;
     settings.iot_platform = RC_IOT_QUARK;
+    settings.max_ans_wait_time_sec = 5;
     settings.service_url = "http://127.0.0.1:8080/api";
-    settings.default_svr_config = __test_service_config;
+    // settings.default_svr_config = __test_service_config;
 
     // init sdk
-    RC_EXCEPT_SUCCESS(rc_sdk_init(&settings));
+    RC_EXCEPT_SUCCESS(rc_sdk_init(&settings, 0));
 
     // get wifi status, if is not connected, do connect
     for (i = 5; i >= 0; i--) {

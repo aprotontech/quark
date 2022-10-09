@@ -26,7 +26,7 @@ ADD_OUTPUT_LIBRARY(quark_static STATIC ${LIB_SRC_LIST})
 
 ADD_MODULE_DEPENDENCIES(quark_static driver_static player_static mqtt_static device_static ans_static network_static logs_static md5_static json_static rcutils_static system_static)
 
-ADD_TARGET_LINK_LIBRARIES(quark_static driver ans mqtt device_static network player logs md5 json rcutils system)
+ADD_TARGET_LINK_LIBRARIES(quark_static driver_static ans_static mqtt_static device_static network_static player_static logs_static md5_static json_static rcutils_static system_static)
 
 # 3.Set properties
 SET_MODULE_PROPERTIES(quark_static PROPERTIES OUTPUT_NAME "quark")

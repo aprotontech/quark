@@ -5,6 +5,8 @@
 #include "esp_sntp.h"
 
 int rc_enable_ntp_sync_time() {
+    LOGI(SDK_TAG, "enable npt sync time");
+
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     sntp_setservername(0, "ntp1.aliyun.com");
     sntp_setservername(1, "pool.ntp.org");
@@ -22,10 +24,10 @@ int rc_enable_ntp_sync_time() { return 0; }
 #endif
 
 int parse_server_time(cJSON* input, double* now) {
-    char* str_rc;
+    int rc = -1;
     BEGIN_MAPPING_JSON(input, root)
-        JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, rc, str_rc)
-        if (strcmp(str_rc, "0") == 0) {
+        JSON_OBJECT_EXTRACT_INT_TO_VALUE(root, rc, rc)
+        if (rc == 0) {
             JSON_OBJECT_EXTRACT_INT_TO_DOUBLE(root, now, *now);
         }
     END_MAPPING_JSON(root)
@@ -36,10 +38,17 @@ int parse_server_time(cJSON* input, double* now) {
 int sync_server_time(rc_timer timer, void* dev) {
     rc_buf_t response = rc_buf_stack();
     double now = 0;
-    LOGI(SDK_TAG, "sync_server_timer");
+    rc_runtime_t* env = get_env_instance();
+
+    if (network_is_available(env->netmgr, NETWORK_MASK_LOCAL) == 0) {
+        rc_timer_ahead_once(timer, 200);  // try 200ms later
+        return -1;
+    }
+
+    LOGI(SDK_TAG, "try to sync_server_timer");
     int rc = rc_http_quark_post("DEVICE", "/time", "{\"microSecond\":true}",
-                                500, &response);
-    if (rc == 0) {
+                                1000, &response);
+    if (rc == 200) {
         BEGIN_EXTRACT_JSON(rc_buf_head_ptr(&response), root)
             parse_server_time(JSON(root), &now);
         END_EXTRACT_JSON(root)
@@ -47,13 +56,21 @@ int sync_server_time(rc_timer timer, void* dev) {
 
     rc_buf_free(&response);
 
-    rc_runtime_t* env = get_env_instance();
-    if (now != 0 && env != NULL && env->time_update) {
+    if (now != 0) {
         int sec = (int)now;
         int usec = (int)((now - sec) * 1000000);
         int diff = time(NULL) - sec;
         if (diff >= NOTIFY_TIME_DIFF || diff <= -NOTIFY_TIME_DIFF) {
-            env->time_update(sec, usec);
+            // time diff is too large
+            struct timeval now = {.tv_sec = sec, .tv_usec = usec};
+            struct timezone tz = {.tz_dsttime = 0, .tz_minuteswest = -480};
+
+            settimeofday(&now, &tz);
+            LOGI(SDK_TAG, "set current time to %d.%06d", sec, usec);
+
+            if (env->time_update != NULL) {
+                env->time_update(sec, usec);
+            }
         }
     }
 

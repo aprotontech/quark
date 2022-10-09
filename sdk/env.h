@@ -36,7 +36,6 @@
 typedef void* rc_mqtt_client;
 typedef void* protontech;
 
-
 typedef void* property_manager;
 typedef void* location_manager;
 
@@ -67,7 +66,9 @@ typedef struct _rc_runtime_t {
 
     wifi_manager wifimgr;
 
-    // buffer
+    int device_registed;
+
+    // buffer, must be last property
     rc_buf_t buff;
 
 } rc_runtime_t;

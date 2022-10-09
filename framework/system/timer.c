@@ -68,10 +68,8 @@ void* timer_tick_thread(void* mgr) {
                 tc->calling = 1;
 
                 if (tc->repeat > 0) {
-                    int usec =
-                        now.tv_usec +
-                        (tc->repeat % 1000) *
-                            1000;  // 存在时钟漂移问题，因为使用了当前时间，理论上应该是用上一次的时间
+                    // 存在时钟漂移问题，因为使用了当前时间，理论上应该是用上一次的时间
+                    int usec = now.tv_usec + (tc->repeat % 1000) * 1000;
                     tc->next_tick.tv_sec =
                         now.tv_sec + (tc->repeat / 1000) + (usec / 1000000);
                     tc->next_tick.tv_usec = usec % 1000000;

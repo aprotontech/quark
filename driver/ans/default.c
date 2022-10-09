@@ -34,7 +34,7 @@ int rc_service_local_config(ans_service ans, const char* env_config) {
     LOGI(SC_TAG, "load default settings(%s)", env_config);
     map_t services = NULL;
     if (parse_json_config(env_config, &services) == 0) {
-        merge_new_services(service_mgr, services, 0);
+        merge_new_services(service_mgr, services, 1);
         hashmap_free(services);
     }
 

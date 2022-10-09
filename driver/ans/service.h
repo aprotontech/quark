@@ -16,7 +16,6 @@
 #ifndef _QUARK_SERVICE_H_
 #define _QUARK_SERVICE_H_
 
-
 #include "hashmap.h"
 #include "rc_crypt.h"
 #include "rc_mutex.h"
@@ -52,6 +51,8 @@ typedef struct _rcservice_mgr_t {
     map_t ipmap;
 
     rc_mutex mobject;
+
+    double update_time;
 
 } rcservice_mgr_t;
 

@@ -97,7 +97,6 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         default:
             break;
         }
-
     } else if (event_base == IP_EVENT) {
         if (event_id == IP_EVENT_STA_GOT_IP) {
             ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;

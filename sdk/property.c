@@ -238,15 +238,23 @@ int on_property_timer(rc_timer timer, void* usr_data) {
     if (network_is_available(mgr->nm, NETWORK_MASK_SESSION) == 0) {
         // device not registed, retry later
         LOGI(SDK_TAG, "device is not registed, so skip report attr");
+        if (mgr->findchangeditem != 0) {
+            rc_timer_ahead_once(mgr->property_timer, 1000);
+        }
         return 0;
     }
 
-    if (get_device_client_id(mgr->device) || get_device_session_token(mgr->device) == NULL) {
+    if (get_device_client_id(mgr->device) == NULL ||
+        get_device_session_token(mgr->device) == NULL) {
         // client or session is empty, device is not registed, so retry later
-        LOGD(SDK_TAG, "device is not registed, so skip report attr");
-        rc_timer_ahead_once(mgr->property_timer, 1000);
+        LOGI(SDK_TAG, "device session is null, so skip report attr");
+        if (mgr->findchangeditem != 0) {
+            rc_timer_ahead_once(mgr->property_timer, 1000);
+        }
         return 0;
     }
+
+    LOGI(SDK_TAG, "changed %d, values=%p", mgr->findchangeditem, mgr->values);
 
     if ((mgr->findchangeditem != 0 ||
          rc_backoff_algorithm_can_retry(&mgr->report_backoff)) &&

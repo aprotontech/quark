@@ -3,6 +3,7 @@
 #include "env.h"
 #include "property.h"
 #include "rc_device.h"
+#include "location.h"
 
 #define DEVICE_SESSION_PATH "/device/session"
 
@@ -29,7 +30,7 @@ void sdk_device_token_callback(aidevice dev, const char* token, int timeout) {
         }
 
         if (env->settings.auto_report_location && env->time_update == 0) {
-            rc_report_location();
+            location_manager_retry_report_atonce(env->locmgr);
         }
     }
 }
@@ -41,6 +42,8 @@ int device_regist(rc_runtime_t* env) {
     rc_settings_t* settings = &env->settings;
 
     memset(&url, 0, sizeof(url));
+
+    LOGI(SDK_TAG, "device try to regist....");
 
     int waitsec = settings->max_ans_wait_time_sec;
     if (waitsec != 0) {
@@ -79,8 +82,14 @@ int device_regist(rc_runtime_t* env) {
     LOGI(SDK_TAG, "device regist app(%s), uuid(%s), secret(%s). response=%d",
          settings->app_id, settings->uuid, settings->app_secret, rc);
 
+    if (netok != 0) {
+        network_set_available(env->netmgr, NETWORK_MASK_SESSION,
+                              get_device_session_token(env->device) != NULL);
+    }
     rc_device_enable_auto_refresh(env->device, env->timermgr,
                                   sdk_device_token_callback);
+
+    env->device_registed = 1;
 
     return RC_SUCCESS;
 }
