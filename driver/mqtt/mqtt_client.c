@@ -26,68 +26,46 @@ int _mqtt_reconnect_interval[] = {5, 10, 10, 20, 30, 40, 60};
 
 static void* mqtt_main_thread(void* arg);
 
-mqtt_client rc_mqtt_create(const char* host, int port, const char* app_id,
-                           const char* client_id, const char* username,
-                           mqtt_session_token_callback callback) {
-    rc_mqtt_client* mqtt = NULL;
-
-    LOGI(MQ_TAG,
-         "mqtt client remote(%s:%d), app_id(%s), client_id(%s), username(%s)",
-         PRINTSTR(host), port, app_id, client_id, PRINTSTR(username));
-
-    if (callback == NULL) {
-        LOGI(MQ_TAG, "session callback is null");
+mqtt_client mqtt_client_init(const char* app_id,
+                             mqtt_session_callback sessioncb) {
+    if (sessioncb == NULL) {
+        LOGI(MQ_TAG, "input sessioncb(%p) callback is invalidate", sessioncb);
         return NULL;
     }
 
-    if (app_id == NULL || client_id == NULL) {
-        LOGI(MQ_TAG, "input appId(%s), clientId(%s) is invalidate", app_id,
-             client_id);
+    if (app_id == NULL) {
+        LOGI(MQ_TAG, "input app_id is invalidate");
         return NULL;
     }
 
-    if (host == NULL || port <= 0) {
-        LOGI(MQ_TAG, "input remote addr is invalidate");
-        return NULL;
-    }
-
-    mqtt = (rc_mqtt_client*)rc_malloc(sizeof(rc_mqtt_client));
+    rc_mqtt_client* mqtt = (rc_mqtt_client*)rc_malloc(sizeof(rc_mqtt_client));
     memset(mqtt, 0, sizeof(rc_mqtt_client));
-    mqtt->buff = rc_buf_stack();
-    mqtt->buff.total = MQTT_CLIENT_PAD_SIZE;
 
     mqtt->sync_thread = NULL;
     mqtt->mobject = rc_mutex_create(NULL);
     mqtt->mevent = rc_event_init();
 
+    mqtt->get_session = sessioncb;
+
+    mqtt->buff = rc_buf_stack();
+    mqtt->buff.total = MQTT_CLIENT_PAD_SIZE;
     // topic prefix buffer
     mqtt->topic_prefix = rc_buf_tail_ptr(&mqtt->buff);
     mqtt->buff.length = MQTT_TOPIC_PREFIX_LENGTH;
 
+    char* ptr = rc_buf_tail_ptr(&mqtt->buff);
+    mqtt_client_session_t session = {
+        .client_id = &ptr[0],
+        .password = &ptr[MQTT_MAX_CLIENTID_LENGTH],
+        .username = &ptr[MQTT_MAX_CLIENTID_LENGTH + MQTT_MAX_PASSWD_LENGTH]};
+    mqtt->session = session;
+    mqtt->buff.length += MQTT_MAX_CLIENTID_LENGTH + MQTT_MAX_PASSWD_LENGTH +
+                         MQTT_MAX_USERNAME_LENGTH;
+
+    // appid
     mqtt->app_id = rc_buf_tail_ptr(&mqtt->buff);
     rc_buf_append(&mqtt->buff, app_id, strlen(app_id) + 1);
-    // append client id
-    mqtt->client_id = rc_buf_tail_ptr(&mqtt->buff);
-    rc_buf_append(&mqtt->buff, client_id, strlen(client_id) + 1);
 
-    if (username == NULL || username == client_id) {
-        mqtt->user_name = mqtt->client_id;
-    } else {
-        mqtt->user_name = rc_buf_tail_ptr(&mqtt->buff);
-        rc_buf_append(&mqtt->buff, username, strlen(username) + 1);
-    }
-
-    // passwd
-    mqtt->passwd = rc_buf_tail_ptr(&mqtt->buff);
-    mqtt->buff.length += MQTT_PASSWD_MAX_LENGTH;
-
-    if (RC_BUF_LEFT_SIZE(&mqtt->buff) <= 0) {
-        LOGI(MQ_TAG, "buffer size is out-of range");
-        rc_free(mqtt);
-        return NULL;
-    }
-
-    mqtt->get_session = callback;
     mqtt->on_connect = NULL;
 
     mqtt->force_re_sub = 0;
@@ -101,28 +79,58 @@ mqtt_client rc_mqtt_create(const char* host, int port, const char* app_id,
     mqtt->recv_buf = rc_buf_init(960);
     mqtt->send_buf = rc_buf_init(960);
 
-    mqtt->remote_host.sin_family = AF_INET;
-    mqtt->remote_host.sin_port = htons(port);
-    mqtt->remote_host.sin_addr.s_addr = inet_addr(host);
-
     rc_backoff_algorithm_init(
         &mqtt->reconnect_backoff, _mqtt_reconnect_interval,
         sizeof(_mqtt_reconnect_interval) / sizeof(int), -1);
 
-    LOGI(MQ_TAG, "mqtt(%p), client_id(%s) created", mqtt, mqtt->client_id);
+    LOGI(MQ_TAG, "mqtt(%p) client inited", mqtt);
 
     return mqtt;
 }
 
+int mqtt_client_start(mqtt_client client, const char* host, int port,
+                      int is_ssl, mqtt_connect_callback callback) {
+    DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
+
+    LOGI(MQ_TAG, "mqtt client remote(%s:%d), is_ssl(%d)", PRINTSTR(host), port,
+         is_ssl);
+
+    if (host == NULL || port <= 0) {
+        LOGI(MQ_TAG, "input port is invalidate");
+        return RC_ERROR_INVALIDATE_INPUT;
+    }
+
+    mqtt->on_connect = callback;
+    if (mqtt->sync_thread != NULL) {
+        LOGI(MQ_TAG, "mqtt client had started");
+        // mqtt client is not connected, so connect to remote again
+        if (!mqtt->is_connected) {
+            rc_event_signal(mqtt->mevent);
+        }
+    } else {
+        mqtt->remote_host.sin_family = AF_INET;
+        mqtt->remote_host.sin_port = htons(port);
+        mqtt->remote_host.sin_addr.s_addr = inet_addr(host);
+
+        rc_thread_context_t tc = {
+            .joinable = 1, .name = "mqtt", .priority = 0, .stack_size = 4096};
+        mqtt->sync_thread = rc_thread_create(mqtt_main_thread, mqtt, &tc);
+    }
+
+    return RC_SUCCESS;
+}
+
 static int _client_subscribe(rc_mqtt_client* mqtt) {
     char topic[100] = {0};
-    snprintf(topic, 100, "/proton/%s/%s/cmd/#", mqtt->app_id, mqtt->client_id);
+    snprintf(topic, 100, "/aproton/%s/%s/cmd/#", mqtt->app_id,
+             mqtt->session.client_id);
     int ret =
         mqtt_subscribe(&mqtt->client, topic, INT_QOS_TO_ENUM(MQTT_CMD_QOS));
-    LOGI(MQ_TAG, "mqtt(%p) subscribe topic(%s) ret(%d)", mqtt, topic, ret);
+    LOGI(MQ_TAG, "mqtt(%p) subscribe topic(%s) ret(%d), success(%s)", mqtt,
+         topic, ret, ret == MQTT_OK ? "yes" : "no");
     if (ret == MQTT_OK) {
         snprintf(topic, 100, "/proton/%s/%s/rpc/#", mqtt->app_id,
-                 mqtt->client_id);
+                 mqtt->session.client_id);
         ret =
             mqtt_subscribe(&mqtt->client, topic, INT_QOS_TO_ENUM(MQTT_RPC_QOS));
         LOGI(MQ_TAG, "mqtt(%p) subscribe topic(%s) ret(%d)", mqtt, topic, ret);
@@ -169,18 +177,42 @@ int mqtt_tcp_connect(rc_mqtt_client* mqtt) {
     return sfd;
 }
 
-int mqtt_connect_to_remote(rc_mqtt_client* mqtt) {
-    int ret, socket;
-    char* passwd = (char*)mqtt->get_session(mqtt->client_id);
-
-    LOGI(MQ_TAG, "mqtt(%p) connect clientId(%s), token(%s)", mqtt,
-         mqtt->client_id, passwd);
-    if (passwd == NULL || strlen(passwd) >= MQTT_PASSWD_MAX_LENGTH) {
-        LOGI(MQ_TAG, "input mqtt password is invalidate");
+int mqtt_update_session(rc_mqtt_client* mqtt) {
+    int ret;
+    mqtt_client_session_t session;
+    memset(&session, 0, sizeof(session));
+    if ((ret = mqtt->get_session(mqtt, &session)) != 0) {
+        LOGW(MQ_TAG, "mqtt(%p) get session failed with %d", mqtt, ret);
         return RC_ERROR_MQTT_CONNECT;
     }
 
-    strcpy(mqtt->passwd, passwd);
+    LOGI(MQ_TAG, "mqtt(%p) connect clientId(%s), token(%s), username(%s)", mqtt,
+         PRINTSTR(session.client_id), PRINTSTR(session.password),
+         PRINTSTR(session.username));
+
+    if (session.username == NULL || session.password == NULL ||
+        session.client_id == NULL ||
+        strlen(session.client_id) >= MQTT_MAX_CLIENTID_LENGTH ||
+        strlen(session.password) >= MQTT_MAX_PASSWD_LENGTH ||
+        strlen(session.username) >= MQTT_MAX_USERNAME_LENGTH) {
+        LOGW(MQ_TAG, "result session content is invalidate");
+        return RC_ERROR_MQTT_CONNECT;
+    }
+
+    strcpy((char*)mqtt->session.client_id, session.client_id);
+    strcpy((char*)mqtt->session.password, session.password);
+    strcpy((char*)mqtt->session.username, session.username);
+
+    return RC_SUCCESS;
+}
+
+int mqtt_connect_to_remote(rc_mqtt_client* mqtt) {
+    int ret, socket;
+
+    if (mqtt_update_session(mqtt) != 0) {
+        LOGW(MQ_TAG, "mqtt update session failed");
+        return RC_ERROR_MQTT_CONNECT;
+    }
 
     socket = mqtt_tcp_connect(mqtt);
     if (socket < 0) {
@@ -208,8 +240,8 @@ int mqtt_connect_to_remote(rc_mqtt_client* mqtt) {
         mqtt->is_inited = 1;
     }
 
-    ret = mqtt_connect(&mqtt->client, mqtt->client_id, NULL, NULL, 0,
-                       mqtt->user_name, mqtt->passwd,
+    ret = mqtt_connect(&mqtt->client, mqtt->session.client_id, NULL, NULL, 0,
+                       mqtt->session.username, mqtt->session.password,
                        MQTT_CONNECT_CLEAN_SESSION, 60);
 
     if (mqtt_sync(&mqtt->client) == MQTT_OK) {  // connect success
@@ -219,23 +251,6 @@ int mqtt_connect_to_remote(rc_mqtt_client* mqtt) {
         close(socket);
         return RC_ERROR_MQTT_CONNECT;
     }
-
-    return RC_SUCCESS;
-}
-
-int rc_mqtt_start(mqtt_client client, mqtt_connect_callback callback) {
-    DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
-
-    if (mqtt->sync_thread != NULL) {
-        LOGW(MQ_TAG, "mqtt client had starte");
-        return -1;
-    }
-
-    mqtt->on_connect = callback;
-
-    rc_thread_context_t tc = {
-        .joinable = 1, .name = "mqtt", .priority = 0, .stack_size = 4096};
-    mqtt->sync_thread = rc_thread_create(mqtt_main_thread, mqtt, &tc);
 
     return RC_SUCCESS;
 }
@@ -311,6 +326,7 @@ static void* mqtt_main_thread(void* arg) {
         }
 
         mqtt_client_disconnect(mqtt);
+        rc_backoff_algorithm_set_result(&mqtt->reconnect_backoff, 0);
 
         LOGI(MQ_TAG, "mqtt(%p) client closed", mqtt);
     }
@@ -325,7 +341,7 @@ int sub_item_free(any_t ipm, const char* key, any_t value) {
     return RC_SUCCESS;
 }
 
-int rc_mqtt_close(mqtt_client client) {
+int mqtt_client_close(mqtt_client client) {
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
 
     mqtt->is_exit = 1;

@@ -30,7 +30,9 @@
 #define MQTT_CLIENT_PAD_SIZE 384
 
 #define MQTT_TOPIC_PREFIX_LENGTH 60
-#define MQTT_PASSWD_MAX_LENGTH 100
+#define MQTT_MAX_CLIENTID_LENGTH 32
+#define MQTT_MAX_USERNAME_LENGTH 64
+#define MQTT_MAX_PASSWD_LENGTH 100
 
 #ifndef MQTT_TOPIC_RPC
 #define MQTT_TOPIC_RPC "rpc"
@@ -78,12 +80,10 @@ typedef struct _rc_mqtt_client_t {
     short is_exit;
 
     char* app_id;
-    char* client_id;
-    char* user_name;
-    char* passwd;
     char* topic_prefix;
+    mqtt_client_session_t session;
 
-    mqtt_session_token_callback get_session;
+    mqtt_session_callback get_session;
     mqtt_connect_callback on_connect;
 
     // auto reconnection

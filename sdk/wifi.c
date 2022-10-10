@@ -2,6 +2,7 @@
 #include "rc_thread.h"
 
 extern int device_regist(rc_runtime_t* env);
+extern int mqtt_auto_connect(rc_runtime_t* env);
 
 void* _regist_thread(void* env) {
     device_regist((rc_runtime_t*)env);
@@ -35,12 +36,16 @@ int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status) {
             const char* token = get_device_session_token(env->device);
             if (token == NULL || token[0] == '\0') {
                 // device is not registed, so do it
-                rc_device_refresh_atonce(env->device, 100);
+                rc_device_refresh_atonce(env->device, 1);
+            }
+
+            if (env->settings.enable_keepalive && env->mqtt != NULL) {
+                mqtt_auto_connect(env);
             }
         }
 
-        if (time(NULL) < 1000000000 &&
-            env->sync_timer != NULL) {                 // time is not synced
+        // time is not synced
+        if (time(NULL) < 1000000000 && env->sync_timer != NULL) {
             rc_timer_ahead_once(env->sync_timer, 10);  // sync time atonce
         }
     }

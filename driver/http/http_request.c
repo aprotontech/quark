@@ -154,7 +154,6 @@ int http_url_parse(const char* raw_url, struct http_parser_url* url,
 http_request http_request_init(http_manager mgr, const char* raw_url,
                                const char* ipaddr, int method) {
     int is_https = 0;
-    const char* path = NULL;
     struct http_parser_url url;
 
     if (http_url_parse(raw_url, &url, &is_https) != 0) {
@@ -183,7 +182,7 @@ http_request http_request_init_raw(http_manager mgr, int is_https,
                                    const char* host, int host_len, int port,
                                    const char* path, int path_len, int method,
                                    const char* ipaddr) {
-    if (path == NULL) {
+    if (path == NULL || path[0] == '\0' || path_len == 0) {  // path is empty
         path = "/";
         path_len = 1;
     }

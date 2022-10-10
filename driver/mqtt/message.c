@@ -93,8 +93,8 @@ int rc_mqtt_rpc_subscribe(mqtt_client client, const char* topic,
     return _mqtt_subscribe(client, topic, MQTT_TOPIC_RPC, callback);
 }
 
-int rc_mqtt_publish(mqtt_client client, const char* topic, const char* body,
-                    int len) {
+int mqtt_client_publish(mqtt_client client, const char* topic, const char* body,
+                        int len) {
     int ret;
     DECLEAR_REAL_VALUE(rc_mqtt_client, mqtt, client);
     if (is_topic_match(topic, mqtt->topic_prefix, MQTT_TOPIC_EVT) == 0 &&
@@ -112,8 +112,9 @@ int rc_mqtt_publish(mqtt_client client, const char* topic, const char* body,
     return ret == 0 ? RC_SUCCESS : RC_ERROR_MQTT_PUBLISH;
 }
 
-int rc_mqtt_rpc_send(mqtt_client client, const char* topic, const char* body,
-                     int len, int timeout, rc_buf_t* response) {
+int mqtt_client_rpc_send(mqtt_client client, const char* topic,
+                         const char* body, int len, int timeout,
+                         rc_buf_t* response) {
     return RC_ERROR_NOT_IMPLEMENT;
 }
 
@@ -174,7 +175,8 @@ int on_rpc_message(rc_mqtt_client* mqtt, const char* topic,
                    message->application_message_size, &response);
 
     snprintf(acktopic, sizeof(acktopic), "/proton/%s/%s/ack/%s/%s",
-             mqtt->app_id, mqtt->client_id, ret ? "succ" : "fail", msgid);
+             mqtt->app_id, mqtt->session.client_id, ret ? "succ" : "fail",
+             msgid);
 
     ret = mqtt_publish(&mqtt->client, acktopic, rc_buf_head_ptr(&response),
                        response.length, INT_QOS_TO_ENUM(MQTT_RPC_QOS));

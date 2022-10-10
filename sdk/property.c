@@ -254,7 +254,7 @@ int on_property_timer(rc_timer timer, void* usr_data) {
         return 0;
     }
 
-    LOGI(SDK_TAG, "changed %d, values=%p", mgr->findchangeditem, mgr->values);
+    LOGD(SDK_TAG, "changed %d, values=%p", mgr->findchangeditem, mgr->values);
 
     if ((mgr->findchangeditem != 0 ||
          rc_backoff_algorithm_can_retry(&mgr->report_backoff)) &&

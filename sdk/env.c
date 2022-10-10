@@ -36,6 +36,7 @@ int device_regist(rc_runtime_t* env);
 int append_hardware_info(rc_runtime_t* env);
 int auto_report_location_time(rc_timer timer, void* dev);
 
+int env_sdk_device_session(mqtt_client client, mqtt_client_session_t* session);
 int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status);
 
 rc_runtime_t* get_env_instance() { return _env; }
@@ -86,6 +87,8 @@ int rc_sdk_init(rc_settings_t* settings, int regist_sync) {
                                           sync_server_time, env);
     }
 
+    ///////////////////////////////////////////////////
+    // NetworkManager
     env->netmgr = network_manager_init(0);
     if (env->netmgr == NULL) {
         LOGI(SDK_TAG, "sdk init failed, net manager init failed");
@@ -148,6 +151,8 @@ int rc_sdk_init(rc_settings_t* settings, int regist_sync) {
     // define localip property
     rc_property_define("localIp", RC_PROPERTY_STRING_VALUE, NULL, NULL);
 
+    ///////////////////////////////////////////////////
+    // LOCATION
     env->locmgr = location_manager_init(env);
     if (env->locmgr == NULL) {
         LOGI(SDK_TAG, "sdk init failed, location manager init failed");
@@ -155,6 +160,17 @@ int rc_sdk_init(rc_settings_t* settings, int regist_sync) {
         return RC_ERROR_SDK_INIT;
     }
 
+    ///////////////////////////////////////////////////
+    // MQTT
+    if (env->settings.enable_keepalive &&
+        (env->mqtt = mqtt_client_init(env->settings.app_id,
+                                      env_sdk_device_session)) == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, mqtt client init failed");
+        env_free(env);
+        return RC_ERROR_SDK_INIT;
+    }
+
+    /// regist device atonce
     if (regist_sync && device_regist(env) != 0) {
         env_free(env);
         return RC_ERROR_SDK_INIT;
@@ -241,7 +257,7 @@ void env_free(rc_runtime_t* env) {
     }
 
     if (env->mqtt != NULL) {
-        rc_mqtt_close(env->mqtt);
+        mqtt_client_close(env->mqtt);
         env->mqtt = NULL;
     }
 

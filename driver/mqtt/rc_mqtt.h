@@ -24,6 +24,12 @@ enum {
     MQTT_STATUS_CONNECTED = 1,
 };
 
+typedef struct _mqtt_client_session_t {
+    const char* username;
+    const char* client_id;
+    const char* password;
+} mqtt_client_session_t;
+
 typedef void* mqtt_client;
 typedef int (*mqtt_connect_callback)(mqtt_client client, int status,
                                      const char* cause);
@@ -34,26 +40,28 @@ typedef int (*mqtt_rpc_event_callback)(mqtt_client client, const char* from,
                                        const char* type, const char* message,
                                        int message_length, rc_buf_t* response);
 
-typedef const char* (*mqtt_session_token_callback)(const char* client_id);
+typedef int (*mqtt_session_callback)(mqtt_client client,
+                                     mqtt_client_session_t* session);
 
-mqtt_client rc_mqtt_create(const char* host, int port, const char* app_id,
-                           const char* client_id, const char* username,
-                           mqtt_session_token_callback callback);
+mqtt_client mqtt_client_init(const char* app_id,
+                             mqtt_session_callback sessioncb);
 
-int rc_mqtt_start(mqtt_client client, mqtt_connect_callback callback);
+int mqtt_client_start(mqtt_client client, const char* host, int port, int ssl,
+                      mqtt_connect_callback conncb);
 
-int rc_mqtt_subscribe(mqtt_client client, const char* topic,
-                      mqtt_subscribe_callback callback);
+int mqtt_client_subscribe(mqtt_client client, const char* topic,
+                          mqtt_subscribe_callback callback);
 
-int rc_mqtt_publish(mqtt_client client, const char* topic, const char* body,
-                    int len);
+int mqtt_client_publish(mqtt_client client, const char* topic, const char* body,
+                        int len);
 
-int rc_mqtt_rpc_send(mqtt_client client, const char* topic, const char* body,
-                     int len, int timeout, rc_buf_t* response);
+int mqtt_client_rpc_send(mqtt_client client, const char* topic,
+                         const char* body, int len, int timeout,
+                         rc_buf_t* response);
 
-int rc_mqtt_rpc_event(mqtt_client client, const char* topic,
-                      mqtt_rpc_event_callback callback);
+int mqtt_client_rpc_event(mqtt_client client, const char* topic,
+                          mqtt_rpc_event_callback callback);
 
-int rc_mqtt_close(mqtt_client client);
+int mqtt_client_close(mqtt_client client);
 
 #endif

@@ -7,8 +7,7 @@
 
 #define DEVICE_SESSION_PATH "/device/session"
 
-int mqtt_client_init(rc_runtime_t* env, const char* app_id,
-                     const char* client_id);
+extern int mqtt_auto_connect(rc_runtime_t* env);
 
 void sdk_device_token_callback(aidevice dev, const char* token, int timeout) {
     rc_runtime_t* env = get_env_instance();
@@ -19,17 +18,11 @@ void sdk_device_token_callback(aidevice dev, const char* token, int timeout) {
         }
 
         // regist mqtt
-        if (env->mqtt == NULL &&
-            env->settings.enable_keepalive) {  // mqtt is not created
-            const char* app_id = get_device_app_id(env->device);
-            const char* client_id = get_device_client_id(env->device);
-            if (mqtt_client_init(env, app_id, client_id) != 0) {
-                LOGI(SDK_TAG, "create mqtt client failed");
-                return;
-            }
+        if (env->settings.enable_keepalive) {  // mqtt is not created
+            mqtt_auto_connect(env);
         }
 
-        if (env->settings.auto_report_location && env->time_update == 0) {
+        if (env->settings.auto_report_location) {
             location_manager_retry_report_atonce(env->locmgr);
         }
     }
@@ -88,6 +81,11 @@ int device_regist(rc_runtime_t* env) {
     }
     rc_device_enable_auto_refresh(env->device, env->timermgr,
                                   sdk_device_token_callback);
+
+    // setup mqtt client
+    if (env->settings.enable_keepalive) {
+        mqtt_auto_connect(env);
+    }
 
     env->device_registed = 1;
 

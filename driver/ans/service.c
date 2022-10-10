@@ -22,6 +22,7 @@
 #include "rc_json.h"
 #include "rc_system.h"
 #include "http_parser.h"
+#include "rc_url.h"
 
 #include <stdio.h>
 #include <arpa/inet.h>
@@ -250,17 +251,7 @@ int ans_init_default_service(rcservice_mgr_t* mgr, const char* raw_url) {
         memcpy(dftsvr->ips[0], dftsvr->host, host_len);
         dftsvr->ips[0][host_len] = '\0';
     } else {  // try to dns
-        struct in_addr** addr_list;
-        struct hostent* he = gethostbyname(dftsvr->host);
-
-        LOGI(SC_TAG, "gethostbyname(%s) result(%p)", dftsvr->host, he);
-
-        if (he != NULL) {
-            addr_list = (struct in_addr**)he->h_addr_list;
-            if (addr_list[0] != NULL && inet_ntoa(**addr_list) != NULL) {
-                strcpy(dftsvr->ips[0], inet_ntoa(**addr_list));
-            }
-        }
+        rc_dns_resolve(dftsvr->host, dftsvr->ips[0], 0);
     }
 
     if (dftsvr->ips[0][0] == '\0') {
@@ -403,5 +394,5 @@ int rc_service_dns_resolve(ans_service ans, const char* host,
         rc_mutex_unlock(mgr->mobject);
     }
 
-    return rc_resolve_dns(mgr->httpmgr, host, ip);
+    return http_manager_resolve_dns(mgr->httpmgr, host, ip);
 }
