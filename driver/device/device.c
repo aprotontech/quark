@@ -252,6 +252,10 @@ int regist_device(rc_device_t* device, int now, const char* signature) {
         rc = fill_device_info(rc_buf_head_ptr(&response), device);
         device->is_refreshing = 0;
         rc_mutex_unlock(device->mobject);
+    } else {
+        rc_mutex_lock(device->mobject);
+        device->is_refreshing = 0;
+        rc_mutex_unlock(device->mobject);
     }
 
     http_request_uninit(request);
