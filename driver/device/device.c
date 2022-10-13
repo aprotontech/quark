@@ -39,7 +39,7 @@ typedef struct _rc_device_t {
     char* public_key;
     char* app_secret;
     char session_token[40];
-    char* url;
+    http_request_url_info_t url;
     http_manager manager;
     rc_hardware_info* hardware;
     int expire;
@@ -96,18 +96,16 @@ char* build_hardware_info(const rc_hardware_info* hardware) {
     return hstr;
 }
 
-aidevice rc_device_init(http_manager mgr, const char* url,
-                        const rc_hardware_info* hardware) {
+aidevice rc_device_init(http_manager mgr, const rc_hardware_info* hardware) {
     rc_device_t* device = (rc_device_t*)rc_malloc(sizeof(rc_device_t));
     memset(device, 0, sizeof(rc_device_t));
 
-    LOGI(DM_TAG, "rc_device_init: url(%s), mac(%s), bid(%s), cpu(%s)", url,
+    LOGI(DM_TAG, "rc_device_init: mac(%s), bid(%s), cpu(%s)",
          hardware && hardware->mac ? hardware->mac : "",
          hardware && hardware->bid ? hardware->bid : "",
          hardware && hardware->cpu ? hardware->cpu : "");
 
     device->manager = mgr;
-    device->url = rc_copy_string(url);
     device->hardware = (rc_hardware_info*)rc_malloc(sizeof(rc_hardware_info));
     device->hardware->cpu =
         hardware && hardware->cpu ? rc_copy_string(hardware->cpu) : NULL;
@@ -223,18 +221,44 @@ int regist_device(rc_device_t* device, int now, const char* signature) {
 
     LOGI(DM_TAG, "json request: %s", json_req);
 
-    http_post(device->manager, device->url, NULL, NULL, 0, json_req,
-              strlen(json_req), 3000, &response);
-    free(json_req);
-    LOGI(DM_TAG, "json rsponse: %s", rc_buf_head_ptr(&response));
+    // init request body
+    rc_buf_t rbody = rc_buf_usrdata(json_req, strlen(json_req));
+    rbody.length = rbody.total;
+    rbody.immutable = 1;
+    rbody.free = 1;  // will free buffer after request done
 
-    rc_mutex_lock(device->mobject);
-    LOGI(DM_TAG, "before fill_device_info");
-    rc = fill_device_info(rc_buf_head_ptr(&response), device);
-    device->is_refreshing = 0;
-    rc_mutex_unlock(device->mobject);
+    http_request request =
+        http_request_init_url(device->manager, &device->url, HTTP_REQUEST_POST);
+    if (request == NULL) {
+        LOGW(DM_TAG, "create http request failed");
+        return RC_ERROR_CREATE_REQUEST_FAILED;
+    }
 
-    rc_buf_free(&response);
+    int timeout = 3000;
+    http_request_set_opt(request, HTTP_REQUEST_OPT_REQUEST_BODY, &rbody);
+    http_request_set_opt(request, HTTP_REQUEST_OPT_TIMEOUT, &timeout);
+
+    rc = http_request_execute(request);
+    LOGI(DM_TAG, "http post regist device finish with %d", rc);
+    if (rc == 0) {
+        http_request_get_response(request, &rc, &response);
+
+        // is just for debuger print
+        rc_buf_tail_ptr(&response)[0] = '\0';
+        LOGI(DM_TAG, "json rsponse: %s", rc_buf_head_ptr(&response));
+
+        rc_mutex_lock(device->mobject);
+        LOGI(DM_TAG, "before fill_device_info");
+        rc = fill_device_info(rc_buf_head_ptr(&response), device);
+        device->is_refreshing = 0;
+        rc_mutex_unlock(device->mobject);
+    } else {
+        rc_mutex_lock(device->mobject);
+        device->is_refreshing = 0;
+        rc_mutex_unlock(device->mobject);
+    }
+
+    http_request_uninit(request);
 
     rc_backoff_algorithm_set_result(&device->sbackoff, rc == RC_SUCCESS);
 
@@ -340,19 +364,20 @@ int query_device_session_token(rc_device_t* device) {
     return rc;
 }
 
-int rc_device_regist(aidevice dev, const char* app_id, const char* uuid,
+int rc_device_regist(aidevice dev, const http_request_url_info_t* url,
+                     const char* app_id, const char* uuid,
                      const char* app_secret, int at_once) {
     DECLEAR_REAL_VALUE(rc_device_t, device, dev);
     LOGI(DM_TAG,
-         "rc_device_storybox_regist: device(%p), app_id(%s), uuid(%s), "
-         "app_secret(%s)",
-         dev, app_id, uuid, app_secret);
+         "regist: device(%p), url(%s), app_id(%s), uuid(%s), app_secret(%s)",
+         dev, url->host, app_id, uuid, app_secret);
 
     if (app_id == NULL || uuid == NULL || app_secret == NULL) {
         LOGI(DM_TAG, "regist_device_storybox input params has null");
         return RC_ERROR_INVALIDATE_INPUT;
     }
 
+    device->url = *url;
     UPDATE_DEVICE_PROPERTY(device, app_id, app_id);
     UPDATE_DEVICE_PROPERTY(device, uuid, uuid);
     UPDATE_DEVICE_PROPERTY(device, app_secret, app_secret);
@@ -377,6 +402,9 @@ int rc_device_uninit(aidevice dev) {
     if (device->client_id) rc_free(device->client_id);
     if (device->uuid) rc_free(device->uuid);
     if (device->public_key) rc_free(device->public_key);
+    if (device->url.host) rc_free(device->url.host);
+    if (device->url.ip) rc_free(device->url.ip);
+    if (device->url.path) rc_free(device->url.path);
 
     if (device->hardware) {
         rc_hardware_info* hardware = device->hardware;

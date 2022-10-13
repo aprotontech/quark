@@ -20,6 +20,7 @@
 #include "rc_mutex.h"
 #include "env.h"
 #include "backoff.h"
+#include "rc_network.h"
 
 #define MAX_PROPERTY_NAME 30
 
@@ -46,6 +47,8 @@ typedef struct _rc_property_manager {
     rc_mutex mgr_mutex;
     int findchangeditem;
     backoff_algorithm_t report_backoff;
+    rc_network_manager nm;
+    aidevice device;
 } rc_property_manager;
 
 typedef void* property_manager;

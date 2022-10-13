@@ -18,6 +18,7 @@
 #include "rc_http_manager.h"
 #include "rc_http_client.h"
 #include "rc_error.h"
+#include "rc_url.h"
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -74,7 +75,8 @@ int http_manager_set_dns_resolver(http_manager mgr, dns_resolver dns) {
     return RC_SUCCESS;
 }
 
-int rc_resolve_dns(http_manager mgr, const char* host, struct in_addr* ip) {
+int http_manager_resolve_dns(http_manager mgr, const char* host,
+                             struct in_addr* ip) {
     struct hostent* he = NULL;
     struct in_addr** addr_list;
     rc_http_manager_t* http_mgr = (rc_http_manager_t*)mgr;

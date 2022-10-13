@@ -77,7 +77,7 @@ int rc_event_wait(rc_event evt, int timeout_ms) {
 #elif defined(__QUARK_LINUX__)
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
-        msec = (ts.tv_nsec / 1000000) + (timeout_ms % 1000);
+        long long int msec = (ts.tv_nsec / 1000000) + (timeout_ms % 1000);
         ts.tv_sec += (timeout_ms / 1000) + (msec / 1000);
         ts.tv_nsec = (ts.tv_nsec % 1000000) + (msec % 1000) * 1000000;
         pthread_mutex_lock(&event->mevent);

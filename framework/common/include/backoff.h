@@ -32,4 +32,6 @@ int rc_backoff_algorithm_set_result(backoff_algorithm_t* alg, int is_success);
 
 int rc_backoff_algorithm_can_retry(backoff_algorithm_t* alg);
 
+int rc_backoff_algorithm_restart(backoff_algorithm_t* alg, int skip_success);
+
 #endif

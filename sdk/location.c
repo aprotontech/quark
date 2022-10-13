@@ -19,6 +19,7 @@
 #include "wifi.h"
 #include "env.h"
 #include "location.h"
+#include "rc_device.h"
 
 #define LOC_TAG "[Location]"
 
@@ -34,17 +35,23 @@ rc_location_t* rc_get_current_location() {
 
 int parse_location_result(cJSON* input, rc_location_t* location);
 
-int rc_report_location_wifi(const rc_wifi_ap_t* wifis, int wifi_count,
+int rc_report_location_wifi(rc_location_manager_t* mgr,
+                            const rc_wifi_ap_t* wifis, int wifi_count,
                             rc_location_t* location) {
     int i;
     char* wifistr = NULL;
     cJSON* input = NULL;
     rc_buf_t response = rc_buf_stack();
     char mac[20] = {0};
+    char* mymac = "";
 
     LOGI(LOC_TAG, "rc_report_location");
+    if (mgr->hardware != NULL && ((rc_hardware_info*)mgr->hardware)->mac) {
+        mymac = ((rc_hardware_info*)mgr->hardware)->mac;
+    }
 
     BEGIN_JSON_OBJECT(root)
+        JSON_OBJECT_ADD_STRING(root, mac, mymac);
         JSON_OBJECT_ADD_ARRAY(root, wifiList)
         for (i = 0; i < wifi_count; ++i) {
             BEGIN_JSON_ARRAY_ADD_OBJECT_ITEM(wifiList, itm)
@@ -59,21 +66,22 @@ int rc_report_location_wifi(const rc_wifi_ap_t* wifis, int wifi_count,
         wifistr = JSON_TO_STRING(root);
     END_JSON_OBJECT(root);
 
-    int rc = rc_http_quark_post("device", "/location/report", wifistr, 5000,
-                                &response);
+    int rc = RC_ERROR_LOCATION_REPORT;
+    int rcode = rc_http_quark_post("device", "/location/report", wifistr, 5000,
+                                   &response);
     free(wifistr);  // free string
-    if (rc == 200) {
+    if (rcode == 200) {
         LOGI(LOC_TAG, "report location success(%s)",
              rc_buf_head_ptr(&response));
         input = cJSON_Parse(rc_buf_head_ptr(&response));
         if (input != NULL) {
-            parse_location_result(input, location);
+            rc = parse_location_result(input, location);
             cJSON_Delete(input);
         }
     }
     rc_buf_free(&response);
 
-    return 0;
+    return rc;
 }
 
 int rc_report_location() {
@@ -90,6 +98,11 @@ int rc_report_location() {
 
     DECLEAR_REAL_VALUE(rc_location_manager_t, mgr, env->locmgr);
 
+    if (network_is_available(env->netmgr, NETWORK_MASK_SESSION) == 0) {
+        LOGI(LOC_TAG, "device is not registed, so skip report location");
+        return RC_ERROR_LOCATION_REPORT;
+    }
+
     rc_mutex_lock(mgr->mobject);
     if (mgr->is_reporting_location || rc_get_session_token() == NULL) {
         rc_mutex_unlock(mgr->mobject);
@@ -99,12 +112,15 @@ int rc_report_location() {
     mgr->is_reporting_location = 1;
     rc_mutex_unlock(mgr->mobject);
 
-    int rc = -1;
+    int rc = RC_ERROR_LOCATION_REPORT;
+    LOGI(LOC_TAG, "start to scan wifi list, and report location");
     if (wifi_manager_scan_ap(env->wifimgr, &scan_result) == 0) {
-        rc = rc_report_location_wifi(scan_result.aps, scan_result.count,
-                                     &location);
+        rc = rc_report_location_wifi(env->locmgr, scan_result.aps,
+                                     scan_result.count, &location);
     } else {
-        LOGI(LOC_TAG, "scan ap failed");
+        rc = RC_ERROR_WIFI_SCAN;
+        LOGI(LOC_TAG,
+             "no need to report location, because of scan ap list failed");
     }
 
     rc_mutex_lock(mgr->mobject);
@@ -118,7 +134,7 @@ int rc_report_location() {
 }
 
 int parse_location_result(cJSON* input, rc_location_t* location) {
-    int rc = 0;
+    int rc = RC_ERROR_LOCATION_REPORT;
     BEGIN_MAPPING_JSON(input, root)
         JSON_OBJECT_EXTRACT_INT_TO_VALUE(root, rc, rc);
         if (rc == 0) {
@@ -130,7 +146,7 @@ int parse_location_result(cJSON* input, rc_location_t* location) {
         }
     END_MAPPING_JSON(root);
 
-    return 0;
+    return rc;
 }
 
 int auto_report_location_time(rc_timer timer, void* dev) {
@@ -139,12 +155,20 @@ int auto_report_location_time(rc_timer timer, void* dev) {
         DECLEAR_REAL_VALUE(rc_location_manager_t, mgr, env->locmgr);
         if (env->settings.auto_report_location &&
             rc_backoff_algorithm_can_retry(&mgr->location_report_backoff) &&
-            network_is_available(env->netmgr, NETWORK_SESSION)) {
+            network_is_available(env->netmgr, NETWORK_MASK_SESSION)) {
             int rc = rc_report_location();
+            LOGI(LOC_TAG, "location report result=%d", rc);
             rc_backoff_algorithm_set_result(&mgr->location_report_backoff,
                                             rc == 0);
         }
     }
+    return 0;
+}
+
+int location_manager_retry_report_atonce(location_manager lm) {
+    DECLEAR_REAL_VALUE(rc_location_manager_t, mgr, lm);
+    rc_backoff_algorithm_restart(&mgr->location_report_backoff, 0);
+    rc_timer_ahead_once(mgr->location_timer, 10);
     return 0;
 }
 
@@ -153,6 +177,7 @@ location_manager location_manager_init(rc_runtime_t* env) {
         (rc_location_manager_t*)malloc(sizeof(rc_location_manager_t));
     memset(mgr, 0, sizeof(rc_location_manager_t));
     mgr->mobject = rc_mutex_create(NULL);
+    mgr->hardware = env->settings.hardware;
     rc_backoff_algorithm_init(
         &mgr->location_report_backoff, _location_report_retry_intervals,
         sizeof(_location_report_retry_intervals) / sizeof(int),
@@ -160,7 +185,7 @@ location_manager location_manager_init(rc_runtime_t* env) {
 
     if (env->settings.auto_report_location) {
         mgr->location_timer = rc_timer_create(env->timermgr, 3 * 1000, 3 * 1000,
-                                              auto_report_location_time, NULL);
+                                              auto_report_location_time, mgr);
     }
 
     return mgr;

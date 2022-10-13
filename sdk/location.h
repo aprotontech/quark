@@ -21,6 +21,7 @@ typedef struct _rc_location_manager_t {
     rc_location_t current_location;
     rc_timer location_timer;
     int is_reporting_location;
+    rc_hardware_t* hardware;  // hardware info
     backoff_algorithm_t location_report_backoff;
 } rc_location_manager_t;
 
@@ -29,5 +30,7 @@ typedef void* location_manager;
 location_manager location_manager_init(rc_runtime_t* env);
 
 int location_manager_uninit(location_manager mgr);
+
+int location_manager_retry_report_atonce(location_manager mgr);
 
 #endif

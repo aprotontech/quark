@@ -19,9 +19,9 @@ INCLUDE_DIRECTORIES(${SYSTEM_SOURCE_DIR}/include)
 # 2.Add library,dependencies,link libraries
 ADD_OUTPUT_LIBRARY(ans_static STATIC ${LIB_SRC_LIST})
 
-ADD_MODULE_DEPENDENCIES(ans_static http_static logs_static md5_static json_static)
+ADD_MODULE_DEPENDENCIES(ans_static http_static rcutils_static logs_static md5_static json_static)
 
-ADD_TARGET_LINK_LIBRARIES(ans_static http logs md5 json rcutils)
+ADD_TARGET_LINK_LIBRARIES(ans_static http_static rcutils_static logs_static md5_static json_static)
 
 # 3.Set properties
 SET_MODULE_PROPERTIES(ans_static PROPERTIES OUTPUT_NAME "ans")

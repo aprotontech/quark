@@ -16,6 +16,7 @@
 #ifndef _QUARK_URL_H_
 #define _QUARK_URL_H_
 
-char* rc_url_encode(const char *input, int len);
+char* rc_url_encode(const char* input, int len);
+int rc_dns_resolve(const char* host, char* ip, int idx);
 
 #endif

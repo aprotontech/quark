@@ -6,6 +6,7 @@
 
 #include "esp_system.h"
 #include "esp_wifi.h"
+#include "esp_wifi_types.h"
 #include "esp_event.h"
 #include "logs.h"
 #include "rc_error.h"
@@ -31,20 +32,20 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         LOGW(WIFI_TAG, "input mgr==null");
         return;
     }
-    LOGI(WIFI_TAG, "type(%s), event(%d)", event_base, event_id);
+    LOGI(WIFI_TAG, "type(%s), event(%d)", event_base, (int)event_id);
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
-        case SYSTEM_EVENT_STA_START:
-            LOGI(WIFI_TAG, "wifi event: SYSTEM_EVENT_STA_START");
+        case WIFI_EVENT_STA_START:
+            LOGI(WIFI_TAG, "wifi event: WIFI_EVENT_STA_START");
             esp_wifi_connect();
             break;
-        case SYSTEM_EVENT_STA_CONNECTED:
-            LOGI(WIFI_TAG, "wifi event: SYSTEM_EVENT_STA_CONNECTED");
+        case WIFI_EVENT_STA_CONNECTED:
+            LOGI(WIFI_TAG, "wifi event: WIFI_EVENT_STA_CONNECTED");
             break;
-        case SYSTEM_EVENT_STA_DISCONNECTED:
+        case WIFI_EVENT_STA_DISCONNECTED:
             /* This is a workaround as ESP32 WiFi libs don't currently
             auto-reassociate. */
-            LOGI(WIFI_TAG, "wifi event: SYSTEM_EVENT_STA_DISCONNECTED");
+            LOGI(WIFI_TAG, "wifi event: WIFI_EVENT_STA_DISCONNECTED");
             esp_wifi_connect();
             xEventGroupClearBits(mgr->wifi_event_group, CONNECTED_BIT);
             mgr->status = RC_WIFI_DISCONNECTED;
@@ -52,7 +53,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
                 mgr->on_changed(mgr, RC_WIFI_DISCONNECTED);
             }
             break;
-        case SYSTEM_EVENT_SCAN_DONE: {
+        case WIFI_EVENT_SCAN_DONE: {
             uint16_t i, ap_count = 0;
             wifi_ap_record_t tmp;
             rc_wifi_ap_t* aps = NULL;
@@ -96,7 +97,6 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         default:
             break;
         }
-
     } else if (event_base == IP_EVENT) {
         if (event_id == IP_EVENT_STA_GOT_IP) {
             ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;

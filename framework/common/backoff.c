@@ -52,7 +52,7 @@ int rc_backoff_algorithm_can_retry(backoff_algorithm_t* alg) {
     }
 
     time_t t = alg->last_retry_time;
-    if (alg->status) {
+    if (alg->status) {  // success
         if (alg->suc_retry_interval < 0) {
             return 0;
         }
@@ -62,4 +62,17 @@ int rc_backoff_algorithm_can_retry(backoff_algorithm_t* alg) {
     }
 
     return t <= time(NULL);
+}
+
+int rc_backoff_algorithm_restart(backoff_algorithm_t* alg, int skip_success) {
+    if (alg == NULL) {
+        return RC_ERROR_INVALIDATE_INPUT;
+    }
+
+    alg->index = 0;
+    if (skip_success && alg->status == 1) {
+        alg->status = 0;
+    }
+
+    return 0;
 }

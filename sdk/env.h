@@ -32,22 +32,14 @@
 
 #define SDK_TAG "[QUARK]"
 #define NOTIFY_TIME_DIFF 60
-#define QUARK_API_URL "http://api.aproton.tech"
 
 typedef void* rc_mqtt_client;
 typedef void* protontech;
-
-typedef struct _rc_local_config_t {
-    char* name;
-    char* default_service_url;
-    int service_count;
-} rc_local_config_t;
 
 typedef void* property_manager;
 typedef void* location_manager;
 
 typedef struct _rc_runtime_t {
-    rc_local_config_t local;
     rc_settings_t settings;
 
     aidevice device;
@@ -67,14 +59,16 @@ typedef struct _rc_runtime_t {
 
     rc_kl_status_change kl_change;
     rc_push_callback push_callback;
-    rc_instant_callback instant_callback;
+    rc_remote_cmd_callback instant_callback;
 
     // sync time with server
     rc_timer sync_timer;
 
     wifi_manager wifimgr;
 
-    // buffer
+    int device_registed;
+
+    // buffer, must be last property
     rc_buf_t buff;
 
 } rc_runtime_t;

@@ -26,7 +26,7 @@ typedef int (*rc_kl_status_change)(int online, const char* cause);
 typedef int (*rc_session_change)(const char* session, int timeout);
 typedef int (*rc_push_callback)(const char* message, int len,
                                 rc_buf_t* response);
-typedef int (*rc_instant_callback)(const char* message, int len);
+typedef int (*rc_remote_cmd_callback)(const char* message, int len);
 
 typedef int (*rc_sync_time_callback)(int sec, int usec);
 
@@ -50,6 +50,7 @@ typedef void* rc_hardware_t;
 
 typedef struct _rc_settings_t {
     char* service_url;
+    char* default_svr_config;  // default service config
     // input settings
     char* app_id;
     char* client_id;
@@ -66,7 +67,7 @@ typedef struct _rc_settings_t {
     // recv push message
     rc_push_callback push_callback;
     // recv instant message
-    rc_instant_callback instant_callback;
+    rc_remote_cmd_callback instant_callback;
     // wifi status changed
     rc_wifi_status_callback wifi_status_callback;
 
@@ -78,13 +79,14 @@ typedef struct _rc_settings_t {
 
     int location_report_interval;  // second
 
+    // enable ntp time
     char enable_ntp_time_sync;
-    char new_thread_init;
     char enable_keepalive;
     char iot_platform;  // rc_iot_platform_type
     char max_device_retry_times;
     char auto_watch_wifi_status;
     char auto_report_location;
+    char max_ans_wait_time_sec;  // max wait time, -1: forever
 
 } rc_settings_t;
 
@@ -92,8 +94,7 @@ const char* rc_sdk_version();
 
 rc_settings_t* rc_settings_init(rc_settings_t* setting);
 
-int rc_sdk_init(const char* env_name, int enable_debug_client_info,
-                rc_settings_t* settings);
+int rc_sdk_init(rc_settings_t* settings, int regist_sync);
 
 int rc_sdk_uninit();
 
@@ -102,6 +103,8 @@ int rc_sdk_uninit();
 const char* rc_get_app_id();
 const char* rc_get_client_id();
 const char* rc_get_session_token();
+
+int rc_regist_cmd_handle(const char* topic, rc_remote_cmd_callback callback);
 
 ///////////////////////
 // PROPERTY

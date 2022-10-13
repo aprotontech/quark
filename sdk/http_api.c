@@ -104,7 +104,7 @@ http_request rc_http_quark_request(const char* service_name, const char* path,
     }
 
     snprintf(url, sizeof(url), "%s%s%csdkVersion=%s&reqId=%s",
-             env->local.default_service_url, path,
+             env->settings.service_url, path,
              strchr(path, '?') != NULL ? '&' : '?', rc_sdk_version(),
              newReqId(reqId));
 

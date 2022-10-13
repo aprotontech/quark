@@ -200,6 +200,8 @@ property_manager property_manager_init(rc_runtime_t* env,
     mgr->property_change_report = property_change_report;
     mgr->mgr_mutex = rc_mutex_create(NULL);
     mgr->values = hashmap_new();
+    mgr->nm = env->netmgr;
+    mgr->device = env->device;
     mgr->property_timer =
         rc_timer_create(env->timermgr, porperty_retry_interval,
                         porperty_retry_interval, on_property_timer, mgr);
@@ -233,12 +235,26 @@ int on_property_timer(rc_timer timer, void* usr_data) {
 
     DECLEAR_REAL_VALUE(rc_property_manager, mgr, usr_data);
 
-    if (rc_get_client_id() == NULL || rc_get_session_token() == NULL) {
-        // client or session is empty, device is not registed, so retry later
-        LOGD(SDK_TAG, "device is not registed, so skip report attr");
-        rc_timer_ahead_once(mgr->property_timer, 1000);
+    if (network_is_available(mgr->nm, NETWORK_MASK_SESSION) == 0) {
+        // device not registed, retry later
+        LOGI(SDK_TAG, "device is not registed, so skip report attr");
+        if (mgr->findchangeditem != 0) {
+            rc_timer_ahead_once(mgr->property_timer, 1000);
+        }
         return 0;
     }
+
+    if (get_device_client_id(mgr->device) == NULL ||
+        get_device_session_token(mgr->device) == NULL) {
+        // client or session is empty, device is not registed, so retry later
+        LOGI(SDK_TAG, "device session is null, so skip report attr");
+        if (mgr->findchangeditem != 0) {
+            rc_timer_ahead_once(mgr->property_timer, 1000);
+        }
+        return 0;
+    }
+
+    LOGD(SDK_TAG, "changed %d, values=%p", mgr->findchangeditem, mgr->values);
 
     if ((mgr->findchangeditem != 0 ||
          rc_backoff_algorithm_can_retry(&mgr->report_backoff)) &&

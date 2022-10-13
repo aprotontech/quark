@@ -26,7 +26,6 @@
 #endif
 
 #define ENV_BUFF_SIZE 64
-#define ANS_QUERY_PATH "/device/dns"
 
 rc_runtime_t* _env;
 void env_free(rc_runtime_t* env);
@@ -37,12 +36,12 @@ int device_regist(rc_runtime_t* env);
 int append_hardware_info(rc_runtime_t* env);
 int auto_report_location_time(rc_timer timer, void* dev);
 
+int env_sdk_device_session(mqtt_client client, mqtt_client_session_t* session);
 int quark_on_wifi_status_changed(wifi_manager mgr, int wifi_status);
 
 rc_runtime_t* get_env_instance() { return _env; }
 
-int rc_sdk_init(const char* env_name, int enable_debug_client_info,
-                rc_settings_t* settings) {
+int rc_sdk_init(rc_settings_t* settings, int regist_sync) {
     rc_runtime_t* env = NULL;
 
     if (_env != NULL) {
@@ -51,9 +50,6 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info,
     }
 
     LOGW(SDK_TAG, "quark sdk start to init");
-    if (settings->enable_ntp_time_sync) {
-        rc_enable_ntp_sync_time();
-    }
 
     env = (rc_runtime_t*)rc_malloc(sizeof(rc_runtime_t) + ENV_BUFF_SIZE);
     memset(env, 0, sizeof(rc_runtime_t));
@@ -65,10 +61,8 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info,
     memcpy(&env->settings, settings, sizeof(env->settings));
     // env->time_update = settings->time_update;
 
-    if (env->settings.service_url != NULL) {  // use input url
-        env->local.default_service_url = env->settings.service_url;
-    } else {
-        env->local.default_service_url = QUARK_API_URL;
+    if (env->settings.enable_ntp_time_sync) {
+        rc_enable_ntp_sync_time();
     }
 
     // hardware info
@@ -87,12 +81,14 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info,
         return RC_ERROR_SDK_INIT;
     }
 
-    if (env->time_update != NULL) {
-        int randtm = (rand() % 1800) + 7200;
+    if (env->time_update != NULL || settings->enable_ntp_time_sync) {
+        int randtm = (rand() % 1800) + 21600;
         env->sync_timer = rc_timer_create(env->timermgr, 1000, randtm * 1000,
                                           sync_server_time, env);
     }
 
+    ///////////////////////////////////////////////////
+    // NetworkManager
     env->netmgr = network_manager_init(0);
     if (env->netmgr == NULL) {
         LOGI(SDK_TAG, "sdk init failed, net manager init failed");
@@ -100,20 +96,25 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info,
         return RC_ERROR_SDK_INIT;
     }
 
-    env->locmgr = location_manager_init(env);
-    if (env->locmgr == NULL) {
-        LOGI(SDK_TAG, "sdk init failed, location manager init failed");
+    ///////////////////////////////////////////////////
+    // WIFI
+    env->wifimgr = wifi_manager_init(quark_on_wifi_status_changed);
+    if (env->wifimgr == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, wifi manager init failed");
         env_free(env);
         return RC_ERROR_SDK_INIT;
     }
 
-    {  // init ans service
-        char url[100] = {0};
-        snprintf(url, sizeof(url), "%s%s", env->local.default_service_url,
-                 ANS_QUERY_PATH);
-        env->ansmgr =
-            rc_service_init(env->settings.app_id, env->settings.uuid, url,
-                            env->httpmgr, env->timermgr, env->netmgr);
+    ///////////////////////////////////////////////////
+    // ANS
+    if (env->settings.service_url == NULL) {  // use input url
+        env_free(env);
+        LOGI(SDK_TAG, "sdk init failed, service url is empty");
+        return RC_ERROR_SDK_INIT;
+    } else {  // init ans service
+        env->ansmgr = rc_service_init(env->settings.app_id, env->settings.uuid,
+                                      env->settings.service_url, env->httpmgr,
+                                      env->timermgr, env->netmgr);
     }
 
     if (env->ansmgr == NULL) {
@@ -123,16 +124,54 @@ int rc_sdk_init(const char* env_name, int enable_debug_client_info,
     }
 
     // load local config
-    rc_service_local_config(env->ansmgr, env_name);
+    if (env->settings.default_svr_config != NULL) {
+        rc_service_local_config(env->ansmgr, env->settings.default_svr_config);
+    }
 
-    env->wifimgr = wifi_manager_init(quark_on_wifi_status_changed);
-    if (env->wifimgr == NULL) {
-        LOGI(SDK_TAG, "sdk init failed, wifi manager init failed");
+    ///////////////////////////////////////////////////
+    // DEVICE
+    env->device =
+        rc_device_init(env->httpmgr, (rc_hardware_info*)env->settings.hardware);
+
+    if (env->device == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, device manager init failed");
+        return RC_ERROR_SDK_INIT;
+    }
+
+    ///////////////////////////////////////////////////
+    // PROPERTY
+    env->properties =
+        property_manager_init(env, settings->property_change_report,
+                              settings->porperty_retry_interval);
+    if (env->properties == NULL) {
+        LOGE(SDK_TAG, "property_manager_init failed");
+        return RC_ERROR_SDK_INIT;
+    }
+
+    // define localip property
+    rc_property_define("localIp", RC_PROPERTY_STRING_VALUE, NULL, NULL);
+
+    ///////////////////////////////////////////////////
+    // LOCATION
+    env->locmgr = location_manager_init(env);
+    if (env->locmgr == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, location manager init failed");
         env_free(env);
         return RC_ERROR_SDK_INIT;
     }
 
-    if (device_regist(env) != 0) {
+    ///////////////////////////////////////////////////
+    // MQTT
+    if (env->settings.enable_keepalive &&
+        (env->mqtt = mqtt_client_init(env->settings.app_id,
+                                      env_sdk_device_session)) == NULL) {
+        LOGI(SDK_TAG, "sdk init failed, mqtt client init failed");
+        env_free(env);
+        return RC_ERROR_SDK_INIT;
+    }
+
+    /// regist device atonce
+    if (regist_sync && device_regist(env) != 0) {
         env_free(env);
         return RC_ERROR_SDK_INIT;
     }
@@ -218,7 +257,7 @@ void env_free(rc_runtime_t* env) {
     }
 
     if (env->mqtt != NULL) {
-        rc_mqtt_close(env->mqtt);
+        mqtt_client_close(env->mqtt);
         env->mqtt = NULL;
     }
 
@@ -242,6 +281,11 @@ void env_free(rc_runtime_t* env) {
         env->ansmgr = NULL;
     }
 
+    if (env->locmgr != NULL) {
+        location_manager_uninit(env->locmgr);
+        env->locmgr = NULL;
+    }
+
     if (env->httpmgr != NULL) {
         http_manager_uninit(env->httpmgr);
         env->httpmgr = NULL;
@@ -255,11 +299,6 @@ void env_free(rc_runtime_t* env) {
     if (env->wifimgr != NULL) {
         wifi_manager_uninit(env->wifimgr);
         env->wifimgr = NULL;
-    }
-
-    if (env->locmgr != NULL) {
-        location_manager_uninit(env->locmgr);
-        env->locmgr = NULL;
     }
 
     if (env == _env) {
