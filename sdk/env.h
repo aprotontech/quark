@@ -59,7 +59,7 @@ typedef struct _rc_runtime_t {
 
     rc_kl_status_change kl_change;
     rc_push_callback push_callback;
-    rc_instant_callback instant_callback;
+    rc_remote_cmd_callback instant_callback;
 
     // sync time with server
     rc_timer sync_timer;

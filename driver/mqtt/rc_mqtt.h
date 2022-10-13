@@ -35,7 +35,7 @@ typedef int (*mqtt_connect_callback)(mqtt_client client, int status,
                                      const char* cause);
 typedef int (*mqtt_subscribe_callback)(mqtt_client client, const char* from,
                                        const char* type, const char* message,
-                                       int message_length);
+                                       int message_length, void* args);
 typedef int (*mqtt_rpc_event_callback)(mqtt_client client, const char* from,
                                        const char* type, const char* message,
                                        int message_length, rc_buf_t* response);
@@ -49,9 +49,6 @@ mqtt_client mqtt_client_init(const char* app_id,
 int mqtt_client_start(mqtt_client client, const char* host, int port, int ssl,
                       mqtt_connect_callback conncb);
 
-int mqtt_client_subscribe(mqtt_client client, const char* topic,
-                          mqtt_subscribe_callback callback);
-
 int mqtt_client_publish(mqtt_client client, const char* topic, const char* body,
                         int len);
 
@@ -59,9 +56,17 @@ int mqtt_client_rpc_send(mqtt_client client, const char* topic,
                          const char* body, int len, int timeout,
                          rc_buf_t* response);
 
+int mqtt_client_cmd_subscribe(mqtt_client client, const char* topic,
+                              mqtt_subscribe_callback callback, void* args);
+
+int mqtt_client_close(mqtt_client client);
+
+///// not used now
+
 int mqtt_client_rpc_event(mqtt_client client, const char* topic,
                           mqtt_rpc_event_callback callback);
 
-int mqtt_client_close(mqtt_client client);
+int mqtt_client_subscribe(mqtt_client client, const char* topic,
+                          mqtt_subscribe_callback callback);
 
 #endif

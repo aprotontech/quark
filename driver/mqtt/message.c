@@ -43,7 +43,7 @@ int is_topic_match(const char* topic, const char* client_prefix,
 }
 
 static int _mqtt_subscribe(mqtt_client client, const char* topic,
-                           const char* topic_type, void* callback) {
+                           const char* topic_type, void* callback, void* args) {
     int ret;
     any_t val;
     mqtt_subscribe_t* sub = NULL;
@@ -60,6 +60,7 @@ static int _mqtt_subscribe(mqtt_client client, const char* topic,
                                            strlen(topic));
         memset(sub, 0, sizeof(mqtt_subscribe_t));
         sub->type = 0;
+        sub->args = args;
         sub->callback = callback;
         strcpy(sub->topic, topic);
         ret = hashmap_put(mqtt->sub_map, sub->topic, sub);
@@ -83,14 +84,14 @@ static int _mqtt_subscribe(mqtt_client client, const char* topic,
     return RC_SUCCESS;
 }
 
-int rc_mqtt_cmd_subscribe(mqtt_client client, const char* topic,
-                          mqtt_subscribe_callback callback) {
-    return _mqtt_subscribe(client, topic, MQTT_TOPIC_CMD, callback);
+int mqtt_client_cmd_subscribe(mqtt_client client, const char* topic,
+                              mqtt_subscribe_callback callback, void* args) {
+    return _mqtt_subscribe(client, topic, MQTT_TOPIC_CMD, callback, args);
 }
 
 int rc_mqtt_rpc_subscribe(mqtt_client client, const char* topic,
                           mqtt_rpc_event_callback callback) {
-    return _mqtt_subscribe(client, topic, MQTT_TOPIC_RPC, callback);
+    return _mqtt_subscribe(client, topic, MQTT_TOPIC_RPC, callback, NULL);
 }
 
 int mqtt_client_publish(mqtt_client client, const char* topic, const char* body,
@@ -203,7 +204,7 @@ int on_rpc_message(rc_mqtt_client* mqtt, const char* topic,
 
 int on_normal_message(rc_mqtt_client* mqtt, const char* topic,
                       MQTTClient_message* message,
-                      mqtt_subscribe_callback callback) {
+                      mqtt_subscribe_callback callback, void* args) {
     // 1: '/'
     int offset = strlen(mqtt->topic_prefix) + strlen(MQTT_TOPIC_CMD) + 1;
     char from[FROM_LENGTH] = {0};
@@ -216,7 +217,7 @@ int on_normal_message(rc_mqtt_client* mqtt, const char* topic,
     }
 
     return callback(mqtt, from, type, message->application_message,
-                    message->application_message_size);
+                    message->application_message_size, args);
 }
 
 int _consume_message(rc_mqtt_client* mqtt, const char* topic,
@@ -224,12 +225,14 @@ int _consume_message(rc_mqtt_client* mqtt, const char* topic,
     any_t p;
     mqtt_subscribe_t* sub = NULL;
     void* callback = NULL;
+    void* args = NULL;
 
     rc_mutex_lock(mqtt->mobject);
     if (hashmap_get(mqtt->sub_map, (char*)topic, &p) == MAP_OK) {
         sub = (mqtt_subscribe_t*)p;
         if (sub != NULL) {
             callback = sub->callback;
+            args = sub->args;
         }
     }
     rc_mutex_unlock(mqtt->mobject);
@@ -241,7 +244,7 @@ int _consume_message(rc_mqtt_client* mqtt, const char* topic,
 
     if (is_topic_match(topic, mqtt->topic_prefix, MQTT_TOPIC_CMD) != 0) {
         on_normal_message(mqtt, topic, message,
-                          (mqtt_subscribe_callback)callback);
+                          (mqtt_subscribe_callback)callback, args);
     } else if (is_topic_match(topic, mqtt->topic_prefix, MQTT_TOPIC_RPC) != 0) {
         on_rpc_message(mqtt, topic, message, (mqtt_rpc_event_callback)callback);
     }

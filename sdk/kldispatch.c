@@ -26,41 +26,33 @@
 
 int get_mqtt_ip_port(rc_runtime_t* env, const char* service, char* ip,
                      int* port);
-extern int free_hash_item(any_t n, const char* key, any_t val);
-
-int rc_net_publish(const char* topic, const char* message, int len) {
-    rc_runtime_t* env = get_env_instance();
-    if (env != NULL && env->mqtt != NULL) {
-        return mqtt_client_publish(env->mqtt, topic, message, len);
-    }
-
-    return RC_ERROR_MQTT_PUBLISH;
-}
-
-int kl_json_decode_message_kv(cJSON* input, char** key, cJSON** data) {
-    char* tmp = NULL;
-    BEGIN_MAPPING_JSON(input, root)
-        JSON_OBJECT_EXTRACT_STRING_TO_VALUE(root, action, tmp)
-        *data = cJSON_GetObjectItem(JSON(root), "data");
-    END_MAPPING_JSON(root);
-
-    *key = tmp;
-    if (*data == NULL) {
-        *data = input;
-    }
-    return 0;
-}
-
-const char* get_message_key(cJSON* input, cJSON** data) {
-    char* key = NULL;
-    kl_json_decode_message_kv(input, &key, data);
-
-    return key;
-}
 
 int rc_call_netrpc(const char* dest, const char* action, cJSON* body,
                    rc_buf_t* response) {
     return 0;
+}
+
+int _mqtt_remote_cmd_callback(mqtt_client client, const char* from,
+                              const char* type, const char* message,
+                              int message_length, void* args) {
+    return ((rc_remote_cmd_callback)args)(message, message_length);
+}
+
+int rc_regist_cmd_handle(const char* topic, rc_remote_cmd_callback callback) {
+    rc_runtime_t* env = get_env_instance();
+    if (env == NULL && env->mqtt == NULL) {
+        LOGW(SDK_TAG, "mqtt client is not inited");
+        return RC_ERROR_SDK_INIT;
+    }
+
+    if (callback == NULL || topic == NULL) {
+        LOGW(SDK_TAG, "invalidate input topic(%s), callback(%p)",
+             PRINTSTR(topic), callback);
+        return RC_ERROR_INVALIDATE_INPUT;
+    }
+
+    return mqtt_client_cmd_subscribe(env->mqtt, topic,
+                                     _mqtt_remote_cmd_callback, callback);
 }
 
 int sdk_mqtt_status_callback(rc_mqtt_client client, int status,

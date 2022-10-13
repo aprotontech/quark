@@ -14,6 +14,8 @@ char __test_service_config[] =
 
 int watch_wifi_status_change(int connected);
 
+int on_remote_print_cmd(const char* message, int len);
+
 int mock_virtual_device(char* env, char* app_id, char* app_secret,
                         int test_time_sec) {
     int i = 0;
@@ -43,6 +45,10 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret,
     }
 
     RC_EXCEPT_SUCCESS(rc_set_wifi("aproton", "aproton@2021"));
+
+    if (settings.enable_keepalive) {
+        rc_regist_cmd_handle("print", on_remote_print_cmd);
+    }
 
     // entry working thread
     for (i = 10; i < test_time_sec; ++i) {
@@ -76,5 +82,12 @@ int watch_wifi_status_change(int connected) {
         rc_thread_create(test_query_thread, NULL, NULL);
     }
 
+    return 0;
+}
+
+int on_remote_print_cmd(const char* message, int len) {
+    LOGI(VD_TAG, "++++++++++++++++++++++++++++++");
+    LOGI(VD_TAG, "%s", message);
+    LOGI(VD_TAG, "++++++++++++++++++++++++++++++");
     return 0;
 }
