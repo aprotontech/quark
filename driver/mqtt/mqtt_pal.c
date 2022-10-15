@@ -65,6 +65,7 @@ ssize_t mqtt_pal_recvall(mqtt_pal_socket_handle fd, void* buf, size_t bufsz,
     const void* const start = buf;
     enum MQTTErrors error = 0;
     ssize_t rv;
+    mstime_t start_time = rc_get_mstick();
     do {
         rv = recv(fd, buf, bufsz, flags);
         if (rv == 0) {
@@ -87,7 +88,8 @@ ssize_t mqtt_pal_recvall(mqtt_pal_socket_handle fd, void* buf, size_t bufsz,
         }
         buf = (char*)buf + rv;
         bufsz -= rv;
-    } while (bufsz > 0);
+    } while (bufsz > 0 &&
+             (rc_get_mstick() - start_time) >= MQTT_PAL_RECV_TIMEOUT_MS);
     if (buf == start) {
         return error;
     }

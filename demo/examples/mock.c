@@ -16,6 +16,8 @@ int watch_wifi_status_change(int connected);
 
 int on_remote_print_cmd(const char* message, int len);
 
+int on_remote_hello_rpc(const char* message, int len, rc_buf_t* response);
+
 int mock_virtual_device(char* env, char* app_id, char* app_secret,
                         int test_time_sec) {
     int i = 0;
@@ -48,6 +50,7 @@ int mock_virtual_device(char* env, char* app_id, char* app_secret,
 
     if (settings.enable_keepalive) {
         rc_regist_cmd_handle("print", on_remote_print_cmd);
+        rc_regist_rpc_handle("hello", on_remote_hello_rpc);
     }
 
     // entry working thread
@@ -89,5 +92,17 @@ int on_remote_print_cmd(const char* message, int len) {
     LOGI(VD_TAG, "++++++++++++++++++++++++++++++");
     LOGI(VD_TAG, "%s", message);
     LOGI(VD_TAG, "++++++++++++++++++++++++++++++");
+    return 0;
+}
+
+int on_remote_hello_rpc(const char* message, int len, rc_buf_t* response) {
+    LOGI(VD_TAG, "hello");
+    rc_buf_t buf = rc_buf_usrdata((char*)rc_malloc(len + 20), len + 20, 1);
+    strcpy(rc_buf_head_ptr(&buf), "hello ");
+    strncat(rc_buf_head_ptr(&buf), message, len);
+    strcat(rc_buf_head_ptr(&buf), "!");
+
+    *response = buf;
+
     return 0;
 }

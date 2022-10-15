@@ -26,13 +26,11 @@
 
 typedef struct _rc_thread_t {
     rc_event* join_event;
+    rc_thread_function func;
+    void* arg;
 #if defined(__QUARK_RTTHREAD__)
     rt_thread_t pthread;
-    rc_thread_function func;
-    void* arg;
 #elif defined(__QUARK_FREERTOS__)
-    rc_thread_function func;
-    void* arg;
     TaskHandle_t handle;
 #elif defined(__QUARK_LINUX__)
     pthread_t pthread;
@@ -78,6 +76,19 @@ static void freertos_thread_adaptor(void* args) {
 #define RC_DEFAULT_THREAD_STACK_SIZE 0
 #define RC_DEFAULT_THREAD_PRIORITY 0
 
+static void* linux_thread_adaptor(void* args) {
+    rc_thread_t* p = (rc_thread_t*)args;
+    if (p != NULL) {
+        prctl(PR_SET_NAME, p->name);
+        LOGI("THREAD", "thread(%s) started", p->name);
+        p->func(p->arg);
+
+        LOGI("THREAD", "thread(%s) finished", p->name);
+    }
+
+    return NULL;
+}
+
 #endif
 
 rc_thread rc_thread_create(rc_thread_function func, void* arg, void* ctx) {
@@ -104,6 +115,9 @@ rc_thread rc_thread_create(rc_thread_function func, void* arg, void* ctx) {
         thread_priority = thread_ctx->priority;
     }
 
+    thread->func = func;
+    thread->arg = arg;
+
 #if defined(__QUARK_RTTHREAD__)
 
     thread->pthread =
@@ -115,12 +129,8 @@ rc_thread rc_thread_create(rc_thread_function func, void* arg, void* ctx) {
         return NULL;
     }
 
-    thread->func = func;
-    thread->arg = arg;
     rt_thread_startup(thread->pthread);
 #elif defined(__QUARK_FREERTOS__)
-    thread->func = func;
-    thread->arg = arg;
 
     if (thread_ctx != NULL && thread_ctx->joinable) {
         thread->join_event = rc_event_init();
@@ -145,7 +155,7 @@ rc_thread rc_thread_create(rc_thread_function func, void* arg, void* ctx) {
 
     LOGI("THREAD", "create freertos task success")
 #elif defined(__QUARK_LINUX__)
-    pthread_create(&thread->pthread, NULL, func, arg);
+    pthread_create(&thread->pthread, NULL, linux_thread_adaptor, thread);
 #endif
 
     return thread;

@@ -24,8 +24,8 @@
 
 typedef int (*rc_kl_status_change)(int online, const char* cause);
 typedef int (*rc_session_change)(const char* session, int timeout);
-typedef int (*rc_push_callback)(const char* message, int len,
-                                rc_buf_t* response);
+typedef int (*rc_remote_rpc_callback)(const char* message, int len,
+                                      rc_buf_t* response);
 typedef int (*rc_remote_cmd_callback)(const char* message, int len);
 
 typedef int (*rc_sync_time_callback)(int sec, int usec);
@@ -65,7 +65,7 @@ typedef struct _rc_settings_t {
     // device session changed
     rc_session_change session_chanage;
     // recv push message
-    rc_push_callback push_callback;
+    rc_remote_rpc_callback push_callback;
     // recv instant message
     rc_remote_cmd_callback instant_callback;
     // wifi status changed
@@ -105,6 +105,7 @@ const char* rc_get_client_id();
 const char* rc_get_session_token();
 
 int rc_regist_cmd_handle(const char* topic, rc_remote_cmd_callback callback);
+int rc_regist_rpc_handle(const char* topic, rc_remote_rpc_callback callback);
 
 ///////////////////////
 // PROPERTY

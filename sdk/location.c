@@ -23,7 +23,7 @@
 
 #define LOC_TAG "[Location]"
 
-int _location_report_retry_intervals[] = {5, 10, 10, 20, 30, 40, 60};
+int _location_report_retry_intervals[] = {5, 20, 40, 80, 160};
 
 rc_location_t* rc_get_current_location() {
     rc_runtime_t* env = get_env_instance();

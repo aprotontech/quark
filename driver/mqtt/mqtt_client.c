@@ -68,13 +68,13 @@ mqtt_client mqtt_client_init(const char* app_id,
 
     mqtt->on_connect = NULL;
 
-    mqtt->force_re_sub = 0;
-    mqtt->has_sub_failed = 0;
     mqtt->sub_map = hashmap_new();
 
     mqtt->is_inited = 0;
     mqtt->is_connected = 0;
     mqtt->is_exit = 0;
+
+    LL_init(&mqtt->msg_to_publish);
 
     mqtt->recv_buf = rc_buf_init(960);
     mqtt->send_buf = rc_buf_init(960);
@@ -122,18 +122,17 @@ int mqtt_client_start(mqtt_client client, const char* host, int port,
 
 static int _client_subscribe(rc_mqtt_client* mqtt) {
     char topic[100] = {0};
-    snprintf(topic, 100, "/aproton/%s/%s/cmd/#", mqtt->app_id,
-             mqtt->session.client_id);
-    int ret =
-        mqtt_subscribe(&mqtt->client, topic, INT_QOS_TO_ENUM(MQTT_CMD_QOS));
+    snprintf(topic, sizeof(topic) - 1, "%s%s/#", mqtt->topic_prefix,
+             MQTT_TOPIC_CMD);
+    int ret = mqtt_subscribe(&mqtt->client, topic, MQTT_CMD_QOS);
     LOGI(MQ_TAG, "mqtt(%p) subscribe topic(%s) ret(%d), success(%s)", mqtt,
          topic, ret, ret == MQTT_OK ? "yes" : "no");
     if (ret == MQTT_OK) {
-        snprintf(topic, 100, "/proton/%s/%s/rpc/#", mqtt->app_id,
-                 mqtt->session.client_id);
-        ret =
-            mqtt_subscribe(&mqtt->client, topic, INT_QOS_TO_ENUM(MQTT_RPC_QOS));
-        LOGI(MQ_TAG, "mqtt(%p) subscribe topic(%s) ret(%d)", mqtt, topic, ret);
+        snprintf(topic, sizeof(topic) - 1, "%s%s/#", mqtt->topic_prefix,
+                 MQTT_TOPIC_RPC);
+        ret = mqtt_subscribe(&mqtt->client, topic, MQTT_RPC_QOS);
+        LOGI(MQ_TAG, "mqtt(%p) subscribe topic(%s) ret(%d), success(%s)", mqtt,
+             topic, ret, ret == MQTT_OK ? "yes" : "no");
     }
 
     return ret == MQTT_OK ? 0 : RC_ERROR_MQTT_SUBSCRIBE;
@@ -149,8 +148,8 @@ int mqtt_tcp_connect(rc_mqtt_client* mqtt) {
     }
 
     struct timeval timeout = {
-        .tv_sec = 3,
-        .tv_usec = 0,
+        .tv_sec = 0,
+        .tv_usec = 200 * 1000,
     };
 
     // setsockopt(sfd, SOL_SOCKET, SO_CONTIMEO, &timeout, sizeof(struct
@@ -220,12 +219,21 @@ int mqtt_connect_to_remote(rc_mqtt_client* mqtt) {
         return RC_ERROR_CREATE_SOCKET;
     }
 
+    ret = snprintf(mqtt->topic_prefix, MQTT_TOPIC_PREFIX_LENGTH - 1,
+                   "/aproton/%s/%s/", mqtt->app_id, mqtt->session.client_id);
+    if (ret >= MQTT_TOPIC_PREFIX_LENGTH - 1 || ret <= 0) {
+        LOGI(MQ_TAG, "mqtt(%p) socket topic prefix is too long", mqtt);
+        return RC_ERROR_CREATE_SOCKET;
+    }
+    mqtt->topic_prefix_length = ret;
+
     if (mqtt->is_inited) {
         mqtt_reinit(
             &mqtt->client, socket, (uint8_t*)rc_buf_head_ptr(mqtt->send_buf),
             mqtt->send_buf->total, (uint8_t*)rc_buf_head_ptr(mqtt->recv_buf),
             mqtt->recv_buf->total);
     } else {
+        mqtt->client.publish_response_callback_state = mqtt;
         ret = mqtt_init(
             &mqtt->client, socket, (uint8_t*)rc_buf_head_ptr(mqtt->send_buf),
             mqtt->send_buf->total, (uint8_t*)rc_buf_head_ptr(mqtt->recv_buf),
@@ -321,8 +329,41 @@ static void* mqtt_main_thread(void* arg) {
         mqtt->is_connected = 1;
         rc_mutex_unlock(mqtt->mobject);
 
-        while (!mqtt->is_exit && mqtt_sync(&mqtt->client) == MQTT_OK) {
-            // nope
+        LOGI(MQ_TAG, "enter mqtt handle loop");
+
+        while (!mqtt->is_exit) {
+            if (mqtt_sync(&mqtt->client) != MQTT_OK) {
+                break;
+            }
+
+            while (!mqtt->is_exit) {
+                mqtt_publish_data_t* p = NULL;
+                rc_mutex_lock(mqtt->mobject);
+
+                if (!LL_isspin(&mqtt->msg_to_publish)) {
+                    p = (mqtt_publish_data_t*)mqtt->msg_to_publish.next;
+                    LL_remove(&p->link);
+                }
+
+                rc_mutex_unlock(mqtt->mobject);
+
+                if (p == NULL) break;
+
+                ret = mqtt_publish(&mqtt->client, p->topic,
+                                   rc_buf_head_ptr(&p->buff), p->buff.length,
+                                   MQTT_RPC_QOS);
+
+                if (mqtt->client.error != MQTT_OK) {
+                    LOGW(MQ_TAG, "package rpc response message failed");
+                }
+
+                ret = __mqtt_send(&mqtt->client);
+                LOGI(MQ_TAG, "mqtt client rpc ack(%s), ret(%d), rc(%d)",
+                     p->topic, ret, mqtt->client.error);
+
+                rc_buf_free(&p->buff);
+                rc_free(p);
+            }
         }
 
         mqtt_client_disconnect(mqtt);

@@ -16,26 +16,23 @@
 #include "rc_buf.h"
 #include <stdarg.h>
 
-char* rc_compress_string(int pad, char* input[], int input_len, ...)
-{
-//    va_list arg_ptr;
-//    char* ret = NULL, *p = NULL;
-//    int total = pad;
-//    int i = 0;
-//
-//    for (i = 0; i < input_len; ++ i) {
-//        total += strlen(input[i]);
-//    }
-//
-//    va_start(arg_ptr, input_len);
-//    do {
-//    } while(p != NULL);
+char* rc_compress_string(int pad, char* input[], int input_len, ...) {
+    //    va_list arg_ptr;
+    //    char* ret = NULL, *p = NULL;
+    //    int total = pad;
+    //    int i = 0;
+    //
+    //    for (i = 0; i < input_len; ++ i) {
+    //        total += strlen(input[i]);
+    //    }
+    //
+    //    va_start(arg_ptr, input_len);
+    //    do {
+    //    } while(p != NULL);
     return NULL;
-    
 }
 
-char* rc_copy_string(const char* input)
-{
+char* rc_copy_string(const char* input) {
     if (input != NULL) {
         int len = strlen(input);
         char* output = (char*)rc_malloc(len + 1);
@@ -48,65 +45,58 @@ char* rc_copy_string(const char* input)
     return NULL;
 }
 
-char* rc_buf_head_ptr(rc_buf_t* buf)
-{
-    return buf == NULL ? NULL :
-        (buf->usr_buf ? buf->usr_buf : buf->buf);
+char* rc_buf_head_ptr(rc_buf_t* buf) {
+    return buf == NULL ? NULL : (buf->usr_buf ? buf->usr_buf : buf->buf);
 }
 
-char* rc_buf_tail_ptr(rc_buf_t* buf)
-{
-    return buf == NULL ? NULL :
-        ((buf->usr_buf ? buf->usr_buf : buf->buf) + buf->length);
+char* rc_buf_tail_ptr(rc_buf_t* buf) {
+    return buf == NULL
+               ? NULL
+               : ((buf->usr_buf ? buf->usr_buf : buf->buf) + buf->length);
 }
 
-rc_buf_t* rc_buf_init(int size)
-{
+rc_buf_t* rc_buf_init(int size) {
     int total = size + sizeof(rc_buf_t) - 4;
     rc_buf_t* p = (rc_buf_t*)rc_malloc(total + 1);
     if (p == NULL) {
         return NULL;
     }
-    memset(p, 0, total + 1); // make sure eof is \0
+    memset(p, 0, total + 1);  // make sure eof is \0
 
     p->free = 1;
     p->total = size;
     LL_init(&p->link);
-    
+
     return p;
 }
 
-rc_buf_t rc_buf_stack()
-{
+rc_buf_t rc_buf_stack() {
     rc_buf_t buf;
     memset(&buf, 0, sizeof(buf));
     buf.total = sizeof(buf.buf);
     return buf;
 }
 
-void rc_buf_free(rc_buf_t* buf)
-{
+void rc_buf_free(rc_buf_t* buf) {
     if (buf != NULL && buf->free) {
         if (buf->usr_buf != NULL) {
             rc_free(buf->usr_buf);
-        }
-        else {
+        } else {
             rc_free(buf);
         }
     }
 }
 
-rc_buf_t rc_buf_usrdata(char* usrbuf, int len)
-{
+rc_buf_t rc_buf_usrdata(char* usrbuf, int len, int free) {
     rc_buf_t buf;
     memset(&buf, 0, sizeof(buf));
     buf.usr_buf = usrbuf;
     buf.total = len;
+    buf.free = free;
     return buf;
 }
 
-rc_buf_t* rc_buf_append(rc_buf_t* buf, const char* data, int len)
-{
+rc_buf_t* rc_buf_append(rc_buf_t* buf, const char* data, int len) {
     if (buf == NULL || RC_BUF_LEFT_SIZE(buf) < len) {
         return NULL;
     }

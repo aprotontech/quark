@@ -20,6 +20,7 @@
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <sys/prctl.h>
 #include <sys/socket.h>
 
 #endif

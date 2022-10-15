@@ -33,12 +33,12 @@ typedef struct _mqtt_client_session_t {
 typedef void* mqtt_client;
 typedef int (*mqtt_connect_callback)(mqtt_client client, int status,
                                      const char* cause);
-typedef int (*mqtt_subscribe_callback)(mqtt_client client, const char* from,
-                                       const char* type, const char* message,
-                                       int message_length, void* args);
+typedef int (*mqtt_cmd_event_callback)(mqtt_client client, const char* from,
+                                       const char* message, int message_length,
+                                       void* args);
 typedef int (*mqtt_rpc_event_callback)(mqtt_client client, const char* from,
-                                       const char* type, const char* message,
-                                       int message_length, rc_buf_t* response);
+                                       const char* message, int message_length,
+                                       void* args, rc_buf_t* response);
 
 typedef int (*mqtt_session_callback)(mqtt_client client,
                                      mqtt_client_session_t* session);
@@ -56,17 +56,12 @@ int mqtt_client_rpc_send(mqtt_client client, const char* topic,
                          const char* body, int len, int timeout,
                          rc_buf_t* response);
 
-int mqtt_client_cmd_subscribe(mqtt_client client, const char* topic,
-                              mqtt_subscribe_callback callback, void* args);
+int mqtt_client_cmd_regist(mqtt_client client, const char* topic,
+                           mqtt_cmd_event_callback callback, void* args);
+
+int mqtt_client_rpc_regist(mqtt_client client, const char* type,
+                           mqtt_rpc_event_callback callback, void* args);
 
 int mqtt_client_close(mqtt_client client);
-
-///// not used now
-
-int mqtt_client_rpc_event(mqtt_client client, const char* topic,
-                          mqtt_rpc_event_callback callback);
-
-int mqtt_client_subscribe(mqtt_client client, const char* topic,
-                          mqtt_subscribe_callback callback);
 
 #endif

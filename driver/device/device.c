@@ -222,10 +222,10 @@ int regist_device(rc_device_t* device, int now, const char* signature) {
     LOGI(DM_TAG, "json request: %s", json_req);
 
     // init request body
-    rc_buf_t rbody = rc_buf_usrdata(json_req, strlen(json_req));
+    // will free buffer after request done
+    rc_buf_t rbody = rc_buf_usrdata(json_req, strlen(json_req), 1);
     rbody.length = rbody.total;
     rbody.immutable = 1;
-    rbody.free = 1;  // will free buffer after request done
 
     http_request request =
         http_request_init_url(device->manager, &device->url, HTTP_REQUEST_POST);

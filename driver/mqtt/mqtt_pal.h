@@ -58,9 +58,9 @@ typedef rc_mutex mqtt_pal_mutex_t;
 #define MQTT_PAL_MUTEX_LOCK(mtx_ptr) _mqtt_pal_mutex_lock(mtx_ptr)
 #define MQTT_PAL_MUTEX_UNLOCK(mtx_ptr) _mqtt_pal_mutex_unlock(mtx_ptr)
 
-typedef int mqtt_pal_socket_handle;
+#define MQTT_PAL_RECV_TIMEOUT_MS 300
 
-typedef struct mqtt_response_publish MQTTClient_message;
+typedef int mqtt_pal_socket_handle;
 
 #define INT_QOS_TO_ENUM(qos)         \
     ((qos) == 0 ? MQTT_PUBLISH_QOS_0 \
