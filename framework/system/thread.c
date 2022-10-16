@@ -65,8 +65,8 @@ static void freertos_thread_adaptor(void* args) {
         vTaskDelete(p->handle);
         p->handle = NULL;
         if (p->join_event == NULL) {
-            free(p);
-        } else {  // notify thread stoped
+            free(p);  // auto-free thread context
+        } else {      // notify thread stoped
             rc_event_signal(p->join_event);
         }
     }

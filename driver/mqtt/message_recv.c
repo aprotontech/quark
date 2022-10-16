@@ -204,8 +204,13 @@ int _mqtt_handle_message(void* context, char* topic,
     if (hashmap_get(mqtt->sub_map, info.key, &p) == MAP_OK) {
         mqtt_subscribe_t* sub = (mqtt_subscribe_t*)p;
         if (sub != NULL) {
-            callback = sub->callback;
-            args = sub->args;
+            if (sub->type == info.type) {
+                callback = sub->callback;
+                args = sub->args;
+            } else {
+                LOGW(MQ_TAG, "callback need type(%d), but topic is %d",
+                     sub->type, info.type);
+            }
         }
     }
     rc_mutex_unlock(mqtt->mobject);

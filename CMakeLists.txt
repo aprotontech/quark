@@ -132,8 +132,7 @@ ADD_SUBDIRECTORY(driver/player)
 
 ADD_SUBDIRECTORY(sdk)
 
-ADD_SUBDIRECTORY(demo/examples)
-
 IF(QUARK_SYSTEM EQUAL 1)
+    ADD_SUBDIRECTORY(demo/examples)
     ADD_SUBDIRECTORY(demo/linux_test)
 ENDIF()

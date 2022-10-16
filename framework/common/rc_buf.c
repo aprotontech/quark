@@ -57,6 +57,7 @@ char* rc_buf_tail_ptr(rc_buf_t* buf) {
 
 rc_buf_t* rc_buf_init(int size) {
     int total = size + sizeof(rc_buf_t) - 4;
+    if (total < sizeof(rc_buf_t)) total = sizeof(rc_buf_t);
     rc_buf_t* p = (rc_buf_t*)rc_malloc(total + 1);
     if (p == NULL) {
         return NULL;
@@ -92,6 +93,7 @@ rc_buf_t rc_buf_usrdata(char* usrbuf, int len, int free) {
     memset(&buf, 0, sizeof(buf));
     buf.usr_buf = usrbuf;
     buf.total = len;
+    buf.length = len;
     buf.free = free;
     return buf;
 }
